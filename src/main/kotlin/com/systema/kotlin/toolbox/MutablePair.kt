@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.systema.kotlin.toolbox
 
 data class MutablePair<A,B>(var first: A, var second: B){

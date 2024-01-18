@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.systema.kotlin.toolbox
 
 import java.awt.Point
@@ -86,7 +88,7 @@ fun sleep(mils: Number){
 }
 
 
-fun waitFor(limitSec: kotlin.time.Duration = 10.seconds, sleepMils: Int = 100, condition: () -> Boolean) : Boolean {
+fun waitFor(limitSec: Duration = 10.seconds, sleepMils: Int = 100, condition: () -> Boolean) : Boolean {
     val start = Instant.now()
     while (true){
         if(limitSec.inWholeMilliseconds > 0 && Instant.now().toEpochMilli() - start.toEpochMilli() > limitSec.inWholeMilliseconds) return false
@@ -105,6 +107,8 @@ fun waitUntil(sleepMils: Int = 100, condition: () -> Boolean): Boolean {
 infix fun Class<*>.instanceOf(clazz: Class<*>) = clazz.isAssignableFrom(this)
 infix fun Class<*>.isNotInstanceOf(clazz: Class<*>) = !clazz.isAssignableFrom(this)
 
+infix fun Any.instanceOf(clazz: Class<*>) = clazz.isAssignableFrom(this::class.java)
+infix fun Any.isNotInstanceOf(clazz: Class<*>) = !clazz.isAssignableFrom(this::class.java)
 
 @Suppress("UNCHECKED_CAST")
 fun<T: Any> KClass<T>.castObj(obj: Any?): T? {
@@ -155,7 +159,8 @@ fun<T> Class<T>.castObj(obj: Any?): T? {
 /**
  * Returns a Java [Class] instance representing the primitive type corresponding to the given [KClass] if it exists.
  */
-public fun <T> Class<T>.javaPrimitivePrimitiveTypeToKotlin(): Class<T>{
+fun <T> Class<T>.javaPrimitivePrimitiveTypeToKotlin(): Class<T>{
+    @Suppress("UNCHECKED_CAST")
     return when (this.name) {
         "java.lang.Boolean" -> Boolean::class.java
         "java.lang.Character" -> Char::class.java
@@ -179,7 +184,7 @@ fun File.notExists(): Boolean {
 }
 
 fun File.child(vararg children: String): File {
-    var current = this ;
+    var current = this
     for (child in children) {
         current = File(current, child)
     }

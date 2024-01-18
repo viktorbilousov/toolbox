@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.systema.kotlin.toolbox.builders
 
 class ListBuilder <E> (list: List<E>) : MutableList<E> by list.toMutableList(), Builder<List<E>> {

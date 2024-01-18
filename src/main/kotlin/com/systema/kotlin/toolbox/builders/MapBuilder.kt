@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.systema.kotlin.toolbox.builders
 
 open class MapBuilder <K,V> (map: Map<K,V> = mapOf()) : MutableMap<K,V> by map.toMutableMap(), Builder<Map<K, V>> {
@@ -7,4 +9,4 @@ open class MapBuilder <K,V> (map: Map<K,V> = mapOf()) : MutableMap<K,V> by map.t
 
 fun <K,V> mapBuilder(builder: MapBuilder<K, V>.() -> Unit) = MapBuilder<K, V>().apply(builder)
 fun <K,V> mapBuilder(map: Map<K, V>, builder: MapBuilder<K, V>.() -> Unit) = MapBuilder(map).apply(builder)
-fun <K,V> Map<K,V>.toMapBuiler(builder: MapBuilder<K, V>.() -> Unit) = MapBuilder(this).apply(builder)
+fun <K,V> Map<K,V>.toMapBuilder(builder: MapBuilder<K, V>.() -> Unit) = MapBuilder(this).apply(builder)

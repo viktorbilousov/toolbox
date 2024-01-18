@@ -1,12 +1,13 @@
+@file:Suppress("unused")
+
 package com.systema.kotlin.toolbox.delegates
 
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.reflect.KProperty
 
-public fun <T> updateWhen(needToUpdate: AtomicBoolean, updateFunction: () -> T) = DelegateUpdateIf<T>(needToUpdate, updateFunction)
+fun <T> updateWhen(needToUpdate: AtomicBoolean, updateFunction: () -> T) = DelegateUpdateIf<T>(needToUpdate, updateFunction)
 
 
-@Suppress("UNCHECKED_CAST")
 class DelegateUpdateIf<T>(private val needToUpdate: AtomicBoolean, private val updateFunction: () -> T) {
 
     private var value: T? = null
@@ -21,6 +22,6 @@ class DelegateUpdateIf<T>(private val needToUpdate: AtomicBoolean, private val u
     }
 
     operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T?) {
-        this.value = value;
+        this.value = value
     }
 }

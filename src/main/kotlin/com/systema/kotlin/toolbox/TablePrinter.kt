@@ -1,3 +1,5 @@
+@file:Suppress("unused", "MemberVisibilityCanBePrivate", "NestedLambdaShadowedImplicitParameter")
+
 package com.systema.kotlin.toolbox
 
 /**
@@ -46,15 +48,15 @@ object TablePrinter {
                     .filterNot {  legend2Index.containsKey(it.first) }
 
                 val map = it
-                keysToAdd.forEach {
-                    if(!legend2Index.containsValue(it.second)){
-                        legend2Index[it.first] = it.second
+                keysToAdd.forEach { pair ->
+                    if(!legend2Index.containsValue(pair.second)){
+                        legend2Index[pair.first] = pair.second
                     }
                     else {
                         var prevLegend: String ? = null
                         var nextLegend: String ? = null
                         val newLegends = map.keys.toList()
-                        val index = newLegends.indexOf(it.first)
+                        val index = newLegends.indexOf(pair.first)
                         if(index > 0){
                             prevLegend = newLegends[index-1]
                             if(!legend2Index.containsKey(prevLegend)){
@@ -86,7 +88,7 @@ object TablePrinter {
                                 legend2Index[it.key] = it.value + 1
                             }
                         }
-                        legend2Index[it.first] = prevIndex + 1
+                        legend2Index[pair.first] = prevIndex + 1
                     }
 
                 }
@@ -100,7 +102,7 @@ object TablePrinter {
             }
             else{
                 val map = mutableMapOf<String, Any?>()
-                for ((index, s) in legend.withIndex()) {
+                for (s in legend) {
                     map[s] = it[s]
                 }
                 map.values.toList()
@@ -146,9 +148,9 @@ object TablePrinter {
     }
 
     private fun printInCenter(string: String, colLen: Int): String {
-        val len = colLen - string.length;
+        val len = colLen - string.length
         if(len == 0) return string
-        val sb = StringBuilder();
+        val sb = StringBuilder()
         sb.append(spaces((len.toDouble()/2).toInt()))
         sb.append(string)
         sb.append(spaces(colLen - sb.length))
@@ -161,7 +163,7 @@ object TablePrinter {
         for (i in 1..cnt) {
             sb.append(" ")
         }
-        return sb.toString();
+        return sb.toString()
     }
 
 }

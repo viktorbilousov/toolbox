@@ -1,3 +1,5 @@
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
+
 package com.systema.kotlin.toolbox
 
 import java.sql.Timestamp
@@ -53,5 +55,5 @@ object TSUtil {
     fun zeroTimeUTC(): Instant = Instant.ofEpochMilli(0)
 
 
-    fun formatter(pattern: String) = DateTimeFormatter.ofPattern(pattern).withZone(ZoneId.of("UTC"))
+    fun formatter(pattern: String) : DateTimeFormatter = DateTimeFormatter.ofPattern(pattern).withZone(ZoneId.of("UTC"))
 }

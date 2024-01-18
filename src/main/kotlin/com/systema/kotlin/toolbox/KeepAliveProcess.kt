@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.systema.kotlin.toolbox
 
 import kotlin.concurrent.thread

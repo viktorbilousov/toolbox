@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.systema.kotlin.toolbox.delegates
 
 import kotlin.reflect.KProperty
@@ -10,7 +12,7 @@ inline fun <reified T> notNullValueToMap(map: MutableMap<String, Any?>, defaultV
 
 
 @Suppress("UNCHECKED_CAST")
-class DelegateToMap<T>(val map: MutableMap<String, Any?>, private val defaultValue: T? = null, val name: String? = null) {
+class DelegateToMap<T>(private val map: MutableMap<String, Any?>, private val defaultValue: T? = null, private val name: String? = null) {
 
     private fun findKey(name: String): String? {
         return map.keys.firstOrNull { it.equals(name, true) }
@@ -33,7 +35,7 @@ class DelegateToMap<T>(val map: MutableMap<String, Any?>, private val defaultVal
 }
 
 @Suppress("UNCHECKED_CAST")
-class NotNullDelegateToMap<T>( val map: MutableMap<String, Any?>, private val defaultValue: T? = null, val name: String? = null) {
+class NotNullDelegateToMap<T>(private val map: MutableMap<String, Any?>, private val defaultValue: T? = null, private val name: String? = null) {
 
     private fun findKey(name: String): String? {
         return map.keys.firstOrNull { it.equals(name, true) }
