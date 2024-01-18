@@ -55,7 +55,13 @@ fun Int.iterateReversed(to: Int = 1, block: (Int) -> Unit ){
 
 //#################### Collections ####################
 
- fun <T> T.wrapToList() : List<T> = listOf(this)
+
+fun <T> Collection<T>.containsAllExactly(collection: Collection<T>): Boolean {
+    return this.containsAll(collection) && this.size == collection.size
+}
+
+
+fun <T> T.wrapToList() : List<T> = listOf(this)
 
 fun <T> List<T>.asMutable() : MutableList<T> = this as MutableList<T>
 fun <K,V> Map<K,V>.asMutable() : MutableMap<K,V> = this as MutableMap<K,V>
@@ -191,3 +197,12 @@ fun File.createNewFileIfNotExists(): Boolean{
     return true
 }
 
+
+// ################### String builders ###################
+
+fun StringBuilder.newLine(cnt: Int = 1): StringBuilder {
+    for ( i in 1..cnt){
+        this.append("\n")
+    }
+    return this;
+}
