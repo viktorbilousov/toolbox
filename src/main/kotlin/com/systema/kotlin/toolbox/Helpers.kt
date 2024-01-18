@@ -209,5 +209,5 @@ fun StringBuilder.newLine(cnt: Int = 1): StringBuilder {
     for ( i in 1..cnt){
         this.append("\n")
     }
-    return this;
+    return this
 }
