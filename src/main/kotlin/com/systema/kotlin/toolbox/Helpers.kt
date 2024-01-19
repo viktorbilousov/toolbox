@@ -40,6 +40,8 @@ fun String.splitAndTrim(vararg delimiters : String) : List<String> {
     return this.split(*delimiters).map { it.trim() }
 }
 
+fun String.inline(newLineSeparator: String = "\\n") = this.replace("\r", "").replace("\n", newLineSeparator)
+
 
 //#################### Number ####################
 
