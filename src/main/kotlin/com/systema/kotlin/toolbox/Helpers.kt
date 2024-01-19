@@ -203,6 +203,35 @@ fun File.createNewFileIfNotExists(): Boolean{
 }
 
 
+
+fun File.setExtension(extension: String) : File{
+    val ex = extension.trim()
+    return if(ex.isEmpty())
+    {
+        File(this.parentFile, this.nameWithoutExtension)
+    }
+    else
+    {
+        File(this.parentFile, this.nameWithoutExtension + "." + ex)
+    }
+}
+
+fun File.getPathParts() : List<String>{
+    return this.absolutePath.split(File.separator)
+}
+
+fun File.getLastPathParts(partsCnt: Int, removeExtension: Boolean = false) : List<String>{
+    val file = if(removeExtension) this.setExtension("") else this
+    return file.getPathParts().let {
+        it.takeLast(minOf(partsCnt, it.size))
+    }
+}
+
+fun File.getLastPathPartsStr(partsCnt: Int, removeExtension: Boolean = false, splitter: String= File.separator) : String {
+    return getLastPathParts(partsCnt, removeExtension).joinToString(splitter)
+}
+
+
 // ################### String builders ###################
 
 fun StringBuilder.newLine(cnt: Int = 1): StringBuilder {
