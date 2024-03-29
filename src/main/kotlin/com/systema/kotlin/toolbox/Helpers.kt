@@ -137,7 +137,7 @@ fun<T: Any> KClass<T>.castObj(obj: Any?): T? {
 fun<T> Class<T>.castObj(obj: Any?): T? {
     if(obj == null) return null
 
-    val clazz = this.javaPrimitivePrimitiveTypeToKotlin()
+    val clazz = this.javaPrimitiveTypeToKotlin()
 
     try {
         return when (clazz) {
@@ -161,7 +161,7 @@ fun<T> Class<T>.castObj(obj: Any?): T? {
 /**
  * Returns a Java [Class] instance representing the primitive type corresponding to the given [KClass] if it exists.
  */
-fun <T> Class<T>.javaPrimitivePrimitiveTypeToKotlin(): Class<T>{
+fun <T> Class<T>.javaPrimitiveTypeToKotlin(): Class<T>{
     @Suppress("UNCHECKED_CAST")
     return when (this.name) {
         "java.lang.Boolean" -> Boolean::class.java
