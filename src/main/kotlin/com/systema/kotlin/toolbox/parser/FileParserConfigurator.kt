@@ -7,6 +7,8 @@ open class FileParserConfigurator<E> (
     private val skipper: MutableList<LineMatcher>,
     ) {
 
+    constructor(configurator: FileParserConfigurator<E>) : this(configurator.parsers, configurator.skipper)
+
     var strict: Boolean = false
 
     class FileParserBuilderPipeline<E>(

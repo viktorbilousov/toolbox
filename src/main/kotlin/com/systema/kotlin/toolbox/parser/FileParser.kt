@@ -28,27 +28,25 @@ open class FileParser<E>(builder: FileParserConfigurator<E>.() -> Unit) : Config
         this.strict = config.strict;
     }
 
-    protected open fun RunningFileParserContext.handleParsingException(e: Exception){
-        val msg = "Error By execution parser ${parserName}, Start Block Line $lineNumberBeforeStartParser"
-
-        if (strict) {
-            throw FileParserException(msg, e)
-        }
-        else {
-            logger.log(Level.WARNING, msg, e)
+    protected open fun handleParsingException(e: Exception, context: RunningFileParserContext){
+        with(context) {
+            if (strict) {
+                throw FileParserException("Error By execution parser ${parserName}, Start Block Line $lineNumberBeforeStartParser", e)
+            }
         }
     }
 
-    protected open fun RunningFileParserContext.executeParser(parser: IParser<E>): E? {
-        return parser.parse(reader)
+    protected open fun executeParser(parser: IParser<E>, context: RunningFileParserContext): E? {
+        return parser.parse(context.reader)
     }
 
-    protected fun RunningFileParserContext.executeParserOrThrow(parser: IParser<E>) : E?{
+    protected fun executeParserOrThrow(parser: IParser<E>, context: RunningFileParserContext) : E?{
         try {
-            return executeParser(parser)
+            return executeParser(parser, context)
         }
         catch (e: Exception) {
-            handleParsingException(e)
+            handleParsingException(e, context)
+            logger.log(Level.WARNING, "Error By execution parser ${context.parserName}, Start Block Line ${context.lineNumberBeforeStartParser}", e)
         }
         return null;
     }
@@ -86,7 +84,7 @@ open class FileParser<E>(builder: FileParserConfigurator<E>.() -> Unit) : Config
 
             val lineCntBeforeStartParser = reader.currentLineCnt
             val context = RunningFileParserContextImpl(parser.name, strict, reader, lineCntBeforeStartParser, linesBuffer) {line}
-            val res = context.executeParserOrThrow(parser.parser as IParser<E>) ?: continue
+            val res = executeParserOrThrow(parser.parser as IParser<E>, context) ?: continue
             list.add(res);
         }
         return list
