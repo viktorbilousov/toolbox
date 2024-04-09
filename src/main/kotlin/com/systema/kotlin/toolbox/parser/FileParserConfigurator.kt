@@ -4,8 +4,10 @@ import com.systema.kotlin.toolbox.parser.MatcherData.Companion.defaultParserId
 
 open class FileParserConfigurator<E> (
     val parsers: MutableList<MatcherData>,
-    private val skipper: MutableList<LineMatcher>
+    private val skipper: MutableList<LineMatcher>,
     ) {
+
+    var strict: Boolean = false
 
     class FileParserBuilderPipeline<E>(
         val parser: IParser<out E>, private val parsers: MutableList<MatcherData>, internal val id: String

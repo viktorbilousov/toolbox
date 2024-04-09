@@ -14,6 +14,8 @@ open class FileParser<E>(builder: FileParserConfigurator<E>.() -> Unit) : Config
 
     protected val parsers: MutableList<MatcherData> = mutableListOf()
     protected val skipper: MutableList<LineMatcher> = mutableListOf()
+    protected var strict: Boolean = false
+    private set;
 
     override fun createConfigurator(): FileParserConfigurator<E> = FileParserConfigurator<E>(parsers, skipper)
     
@@ -21,14 +23,38 @@ open class FileParser<E>(builder: FileParserConfigurator<E>.() -> Unit) : Config
         installConfiguration()
     }
 
-    override fun parse(string: String, strict: Boolean): List<E> {
-        return parse(StringStreamReader(string), strict)
+    override fun configure(config: FileParserConfigurator<E>) {
+        super.configure(config)
+        this.strict = config.strict;
     }
 
-    protected open fun ignoreParseError(e: Exception) : Boolean{ return false }
+    protected open fun RunningFileParserContext.handleParsingException(e: Exception){
+        val msg = "Error By execution parser ${parserName}, Start Block Line $lineNumberBeforeStartParser"
 
-    override fun parse(reader: StringStreamReader, strict: Boolean): List<E> {
-         val list = mutableListOf<E>()
+        if (strict) {
+            throw FileParserException(msg, e)
+        }
+        else {
+            logger.log(Level.WARNING, msg, e)
+        }
+    }
+
+    protected open fun RunningFileParserContext.executeParser(parser: IParser<E>): E? {
+        return parser.parse(reader)
+    }
+
+    protected fun RunningFileParserContext.executeParserOrThrow(parser: IParser<E>) : E?{
+        try {
+            return executeParser(parser)
+        }
+        catch (e: Exception) {
+            handleParsingException(e)
+        }
+        return null;
+    }
+
+    final override fun parse(reader: StringStreamReader): List<E> {
+        val list = mutableListOf<E>()
         val maxLineShift = parsers.maxOf { it.maxLineShift } + 1
         val linesBuffer: MutableList<String> = mutableListOf()
         while (reader.hasNext()) {
@@ -59,27 +85,9 @@ open class FileParser<E>(builder: FileParserConfigurator<E>.() -> Unit) : Config
             reader.goBack(line.length)
 
             val lineCntBeforeStartParser = reader.currentLineCnt
-            @Suppress("UNCHECKED_CAST")
-            try {
-                val obj = parser.parser.parse(reader) as E
-                list.add(obj)
-            }
-            catch (e: Exception) {
-                // ok
-                if(ignoreParseError(e)){
-                    continue;
-                }
-
-                val msg = "Error By execution parser ${parser.name}, Start Block Line $lineCntBeforeStartParser"
-
-                if (strict) {
-                    throw FileParserException(msg, e)
-                }
-                else {
-                    logger.log(Level.WARNING, msg, e)
-                }
-            }
-
+            val context = RunningFileParserContextImpl(parser.name, strict, reader, lineCntBeforeStartParser, linesBuffer) {line}
+            val res = context.executeParserOrThrow(parser.parser as IParser<E>) ?: continue
+            list.add(res);
         }
         return list
     }
