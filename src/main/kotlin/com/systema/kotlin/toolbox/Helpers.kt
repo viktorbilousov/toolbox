@@ -6,6 +6,9 @@ import java.awt.Point
 import java.awt.Rectangle
 import java.io.File
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlin.reflect.KClass
 import kotlin.reflect.cast
 import kotlin.time.Duration
@@ -41,6 +44,8 @@ fun String.splitAndTrim(vararg delimiters : String) : List<String> {
 }
 
 fun String.inline(newLineSeparator: String = "\\n") = this.replace("\r", "").replace("\n", newLineSeparator)
+
+fun String.lines(lineSeparator: String = "\n", trim: Boolean = false) = this.split(lineSeparator).map { if(trim) it.trim() else it  }
 
 
 //#################### Number ####################
@@ -79,7 +84,7 @@ inline fun <T> ignoreException(handle: (e: Exception) -> Unit = {}, block: () ->
     }
 }
 
-//#################### Wating ####################
+//#################### Waiting ####################
 
 fun sleep(duration: Duration){
     Thread.sleep(duration.inWholeMilliseconds)
@@ -103,6 +108,16 @@ fun waitUntil(sleepMils: Int = 100, condition: () -> Boolean): Boolean {
     return waitFor(1.hours, sleepMils , condition)
 }
 
+//#################### Time ####################
+
+
+fun Instant.between(from: Instant, to: Instant): Boolean {
+    return this.isAfter(from) && this.isBefore(to)
+}
+
+private fun DateTimeFormatter.formatTime(dateTime: String, zoneId: ZoneId = ZoneId.systemDefault()): Instant {
+    return LocalDateTime.parse(dateTime, this).atZone(zoneId).toInstant()
+}
 
 //#################### Classes ####################
 
