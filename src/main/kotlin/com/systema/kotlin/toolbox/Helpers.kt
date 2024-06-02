@@ -2,13 +2,15 @@
 
 package com.systema.kotlin.toolbox
 
+import com.systema.kotlin.toolbox.reader.BiReader
 import java.awt.Point
 import java.awt.Rectangle
 import java.io.File
+import java.io.Reader
 import java.time.Instant
-import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.logging.Logger
 import kotlin.reflect.KClass
 import kotlin.reflect.cast
 import kotlin.time.Duration
@@ -115,9 +117,12 @@ fun Instant.between(from: Instant, to: Instant): Boolean {
     return this.isAfter(from) && this.isBefore(to)
 }
 
-private fun DateTimeFormatter.formatTime(dateTime: String, zoneId: ZoneId = ZoneId.systemDefault()): Instant {
-    return LocalDateTime.parse(dateTime, this).atZone(zoneId).toInstant()
+fun DateTimeFormatter.formatTime(dateTime: String, zoneId: ZoneId = ZoneId.systemDefault()): Instant {
+    return TSUtil.parseTs(dateTime, this, zoneId)
 }
+
+val ZoneId.UTC : ZoneId get() = ZoneId.of("UTC")
+val ZoneId.Default : ZoneId get() = ZoneId.systemDefault()
 
 //#################### Classes ####################
 
@@ -248,6 +253,36 @@ fun File.getLastPathPartsStr(partsCnt: Int, removeExtension: Boolean = false, sp
     return getLastPathParts(partsCnt, removeExtension).joinToString(splitter)
 }
 
+private fun getFilesRec(folder: File, files: MutableList<File>){
+    if(!folder.exists() || folder.isFile) return
+    val filesAndFolders =  folder!!.listFiles()!!.map { it!! }
+    filesAndFolders.filter { it.isFile }.forEach {
+        files.add(it)
+    }
+    filesAndFolders.filter { it.isDirectory }.forEach {
+        getFilesRec(it, files)
+    }
+}
+
+fun getFiles(fileOrFolderPath: String): List<File>{
+    if(fileOrFolderPath.endsWith("\\**")){
+        val folder = fileOrFolderPath.replaceAfterLast("\\", "") + "\\"
+        val folderFile = File(folder).absoluteFile
+        if(!folderFile.exists()) return listOf();
+        val files = mutableListOf<File>()
+        getFilesRec(folderFile, files)
+        return files
+    }
+    else if(fileOrFolderPath.endsWith("\\*")){
+        val folder = fileOrFolderPath.replaceAfterLast("\\", "") + "\\"
+        val folderFile = File(folder).absoluteFile
+        if(!folderFile.exists()) return listOf();
+        return folderFile.listFiles()!!.filter { it.isFile }
+    }
+    else{
+        return File(fileOrFolderPath).wrapToList()
+    }
+}
 
 // ################### String builders ###################
 
@@ -257,3 +292,59 @@ fun StringBuilder.newLine(cnt: Int = 1): StringBuilder {
     }
     return this
 }
+
+// ################### Loggers ###################
+
+private fun loggerAnyToName(any: Any): String{
+    return when (any) {
+        is String -> any
+        is Class<*> -> any.simpleName
+        is KClass<*> -> any.simpleName ?: any.java.simpleName
+        else -> any.toString()
+    }
+}
+
+
+fun CharArray.asText() = String(this)
+
+fun logger(any: Any): Logger = Logger.getLogger(loggerAnyToName(any))
+fun logger(clazz: Class<*>): Logger = Logger.getLogger(clazz.simpleName)
+inline fun <reified T> logger() : Logger = Logger.getLogger(T::class.java.simpleName)
+fun loggerWithId(any: Any, id: String): Logger = Logger.getLogger(loggerAnyToName(any) + "#" + id)
+inline fun <reified T> loggerWithId(id: String): Logger = Logger.getLogger(T::class.java.simpleName + "#" + id)
+
+
+
+
+//// ########################### StreamReader ###################################
+
+fun Reader.readChar(): Char? {
+    val code = this.read()
+    if(code == -1) return null
+    return code.toChar()
+}
+
+//
+//fun ReaderWithMemory.goBackToLineBegin() :Boolean{
+//    return goBackTo('\n')
+//}
+//fun ReaderWithMemory.goBackFromLineEndToLineBegin() :Boolean {
+//    return hasPrev() &&  goBackTo('\n')
+//}
+//
+//fun ReaderWithMemory.readToNextTrimmed(vararg char: Char): String? {
+//    return readToNext(*char).asText().trim()
+//}
+//
+//fun ReaderWithMemory.readToNextSpace() = readToNext(' ')
+//fun ReaderWithMemory.readToLineBreak(trimEnd: Boolean = true) = readTextToNext( '\n')?.let { if(trimEnd) it.trimEnd() else it }
+//fun ReaderWithMemory.readToLineBreakTrimmed() = readTextToNext( '\n')?.trim()
+//
+//fun skipSpaces() : TextReaderWithMemory{
+//    var next : Char? = ' '
+//    while (next == ' ')  next = readNext()
+//    if(next != null) {
+//        buffer.goBack()
+//    }
+//    return this
+//}

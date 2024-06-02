@@ -28,10 +28,10 @@ object TSUtil {
     }
 
 
-    fun parseTs(string: String, dataFormat: DateTimeFormatter = DateTimeFormatter.ISO_DATE_TIME): Instant {
+    fun parseTs(string: String, dataFormat: DateTimeFormatter = DateTimeFormatter.ISO_DATE_TIME, zoneId: ZoneId = ZoneId.systemDefault()): Instant {
         var formatter = dataFormat
         if(dataFormat.zone == null) {
-            formatter = formatter.withZone(ZoneId.of("UTC"))
+            formatter = formatter.withZone(zoneId)
         }
         return Instant.from(formatter.parse(string))
     }

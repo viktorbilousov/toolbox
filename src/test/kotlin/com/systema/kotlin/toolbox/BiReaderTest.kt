@@ -1,0 +1,403 @@
+package com.systema.kotlin.toolbox
+
+import com.systema.kotlin.toolbox.reader.BiReader
+import io.kotest.matchers.shouldBe
+import org.junit.jupiter.api.Test
+
+open abstract class BiReaderTest {
+
+    abstract fun createReader(text: String) : BiReader
+
+
+    companion object{
+        private const val TEXT = "Path for java installation 'C:\\Users\\bilousov\\.jdks\\corretto-17.0.6' (IntelliJ IDEA) does not contain a java executable"
+    }
+
+
+    private fun CharArray.asText() : String {
+        return String(this, 0, this.size)
+    }
+
+    @Test
+    fun shouldRememberText(){
+        val reader = createReader(TEXT)
+        reader.readText() shouldBe TEXT
+        reader.goToFirstRead()
+        reader.getFromCurrentPositionToLastRead().asText() shouldBe TEXT
+    }
+
+    @Test
+    fun shouldPreviousText(){
+        val TEXT = "123456789"
+        val reader = createReader(TEXT)
+        reader.readText() shouldBe TEXT
+        reader.getCurrent() shouldBe '9'.code
+        reader.getPrevAndMove() shouldBe '8'.code
+        reader.getPrev() shouldBe '7'.code
+        reader.getCurrent() shouldBe '8'.code
+    }
+
+    @Test
+    fun shouldGetCurrentReadPosition(){
+        val TEXT = "123456789"
+        val reader = createReader(TEXT)
+        reader.readText() shouldBe TEXT
+        reader.currentPositionFromFirstRead shouldBe  8
+        reader.currentPositionFromLastRead shouldBe 0
+
+        reader.goBack()
+        reader.currentPositionFromFirstRead shouldBe 7
+        reader.currentPositionFromLastRead shouldBe 1
+
+
+        reader.goBack()
+        reader.currentPositionFromFirstRead shouldBe 6
+        reader.currentPositionFromLastRead shouldBe 2
+
+
+        reader.goToFirstRead()
+        reader.currentPositionFromFirstRead shouldBe -1
+        reader.currentPositionFromLastRead shouldBe 8
+
+
+        reader.goToLastRead()
+        reader.currentPositionFromFirstRead shouldBe 8
+        reader.currentPositionFromLastRead shouldBe 0
+    }
+
+
+    @Test
+    fun goToNext(){
+        val TEXT = "1234|56789|123"
+        val reader = createReader(TEXT)
+        reader.goToNext('|')
+        reader.getCurrent().toChar() shouldBe '4'
+
+        reader.goToFirstRead()
+
+        reader.goToNext('|', include = true)
+        reader.getCurrent().toChar() shouldBe '|'
+
+        reader.goToFirstRead()
+        reader.goToNext('|', include = true)
+        reader.goToNext('|')
+        reader.getCurrent().toChar() shouldBe '9'
+
+    }
+
+    @Test
+    fun readToNext(){
+        val TEXT = "1234|56789|123"
+        val reader = createReader(TEXT)
+        reader.readToNext('|').asText() shouldBe "1234"
+        reader.read().toChar() shouldBe '|'
+        reader.readToNext('|').asText() shouldBe "56789"
+
+        reader.goToFirstRead()
+
+        reader.readToNext('|', include = true).asText() shouldBe "1234|"
+
+        reader.goToFirstRead()
+        reader.readToNext('|', include = true).asText() shouldBe "1234|"
+        reader.readToNext('|').asText() shouldBe "56789"
+
+    }
+
+
+    @Test
+    fun goNext(){
+        val TEXT = "123456789123"
+        val reader = createReader(TEXT)
+        reader.readText()
+
+        reader.goToFirstRead()
+        reader.getCurrent() shouldBe  -1
+        reader.goNext() shouldBe true
+        reader.getCurrent().toChar() shouldBe '1'
+        reader.goNext() shouldBe true
+        reader.getCurrent().toChar() shouldBe '2'
+        reader.goNext() shouldBe true
+        reader.getCurrent().toChar() shouldBe '3'
+
+    }
+
+    @Test
+    fun goPrev(){
+        val TEXT = "1234|56789|abc"
+        val reader = createReader(TEXT)
+        reader.readText() shouldBe TEXT
+
+        reader.goBackTo('|')
+        reader.getCurrent().toChar() shouldBe 'a'
+
+        reader.goToLastRead()
+
+        reader.goBackTo('|', include = true)
+        reader.getCurrent().toChar() shouldBe '|'
+
+        reader.goToLastRead()
+        reader.goBackTo('|', include = true)
+        reader.goBackTo('|')
+        reader.getCurrent().toChar() shouldBe '5'
+
+    }
+
+
+    @Test
+    fun  goBackToCharAndGetAllToLastRead() {
+        val TEXT = "1234|56789|abc"
+        val reader = createReader(TEXT)
+        reader.readText() shouldBe TEXT
+        reader.goBackToCharAndGetAllToLastRead('|').asText() shouldBe "abc"
+
+        reader.goToLastRead()
+
+        reader.goBackToCharAndGetAllToLastRead('|', include = true).asText() shouldBe "|abc"
+
+        reader.goToLastRead()
+        reader.goBackTo('|', include = true)
+        reader.goBackToCharAndGetAllToLastRead('|').asText() shouldBe "56789|abc"
+    }
+
+
+    @Test
+    fun  goBackToCharAndGetAllToLastReadIfNotFound() {
+        val TEXT = "123456789abc"
+        val reader = createReader(TEXT)
+        reader.readText() shouldBe TEXT
+        reader.goBackToCharAndGetAllToLastRead('|').asText() shouldBe TEXT
+        reader.goBackToCharAndGetAllToLastReadOrNull('|') shouldBe null
+    }
+
+    @Test
+    fun readToNextToEnd(){
+        val TEXT = "123456789abc"
+        val reader = createReader(TEXT)
+        reader.readToNext('|').asText() shouldBe TEXT
+        reader.readToNextOrNull('|') shouldBe null
+    }
+
+
+    @Test()
+    fun readOneByOne(){
+        val TEXT = "< A test 'hello' > * comment"
+        val readText = StringBuilder()
+        val reader = createReader(TEXT)
+
+        while (reader.hasNext()){
+            readText.append(reader.readChar())
+        }
+
+        readText.toString() shouldBe TEXT
+    }
+
+    @Test()
+    fun hasNextDoNotBreakReadingOneByOneSimple(){
+        val TEXT = "1234"
+        val reader = createReader(TEXT)
+
+        reader.hasNext()
+        reader.readChar() shouldBe '1'
+        reader.hasNext()
+        reader.readChar() shouldBe '2'
+        reader.hasNext()
+        reader.readChar() shouldBe '3'
+        reader.hasNext()
+        reader.readChar() shouldBe '4'
+
+    }
+
+    @Test()
+    fun readOneByOneSimple(){
+        val TEXT = "1234"
+        val reader = createReader(TEXT)
+
+        reader.readChar() shouldBe '1'
+        reader.readChar() shouldBe '2'
+        reader.readChar() shouldBe '3'
+        reader.readChar() shouldBe '4'
+    }
+
+
+
+    @Test()
+    fun readFirst(){
+        val TEXT = "12"
+        val reader = createReader(TEXT)
+
+        reader.getCurrent() shouldBe -1
+        reader.read().toChar() shouldBe '1'
+        reader.getCurrent().toChar() shouldBe '1'
+        reader.read().toChar() shouldBe '2'
+    }
+
+    @Test()
+    fun readFirstAndBack(){
+        val TEXT = "12"
+        val reader = createReader(TEXT)
+
+        reader.getCurrent() shouldBe -1
+        reader.read().toChar() shouldBe '1'
+        reader.getCurrent().toChar() shouldBe '1'
+        reader.getCurrent().toChar() shouldBe '1'
+
+        reader.goBack() shouldBe true
+        reader.goBack() shouldBe false
+        reader.getCurrent() shouldBe -1
+        reader.read().toChar() shouldBe '1'
+        reader.getCurrent().toChar() shouldBe '1'
+
+        reader.goBack() shouldBe true
+        reader.goBack() shouldBe false
+        reader.getCurrent() shouldBe -1
+        reader.read().toChar() shouldBe '1'
+        reader.getCurrent().toChar() shouldBe '1'
+
+
+
+        reader.goBack() shouldBe true
+        reader.getCurrent() shouldBe -1
+        reader.read().toChar() shouldBe '1'
+        reader.read().toChar() shouldBe '2'
+        reader.getCurrent().toChar() shouldBe '2'
+
+        reader.goBack() shouldBe true
+        reader.getCurrent().toChar() shouldBe '1'
+
+        reader.goBack() shouldBe true
+        reader.getCurrent() shouldBe -1
+
+        reader.goBack() shouldBe false
+
+    }
+
+
+    @Test
+    fun getFromFirstReadToCurrent(){
+        val reader = createReader(TEXT)
+        reader.readText()
+        reader.getFromFirstReadToCurrent().asText() shouldBe TEXT
+    }
+
+
+    @Test
+    fun goToNextManyChars(){
+        val reader = createReader("1234|5678")
+        reader.goToNext('|', '5')
+        reader.currentPositionFromFirstRead shouldBe 3
+
+        reader.goToFirstRead()
+        reader.goToNext('|', '5', include = true)
+        reader.currentPositionFromFirstRead shouldBe 4
+    }
+
+
+    @Test
+    fun readAfterGotoFirstReadReturnsFirstValue(){
+        val reader = createReader("12345678")
+        reader.readText()
+        reader.goToFirstRead()
+        reader.read().toChar() shouldBe '1'
+    }
+
+
+    @Test
+    fun readToNextFromCurrent(){
+        val TEXT = "1234|56789|123"
+        val reader = createReader(TEXT)
+        reader.read()
+        reader.getCurrent().toChar() shouldBe '1'
+        reader.readToNext('|').asText() shouldBe "234"
+
+        reader.goToFirstRead()
+        reader.read().toChar() shouldBe '1'
+        reader.readToNext('|', include = true).asText() shouldBe "234|"
+
+        reader.goToFirstRead()
+        reader.readToNext('|', include = true).asText() shouldBe "1234|"
+        reader.readToNext('|').asText() shouldBe "56789"
+    }
+
+
+    @Test
+    fun readToNextIncludingCurrent(){
+        val TEXT = "1234|56789|123"
+        val reader = createReader(TEXT)
+        reader.read()
+        reader.getCurrent().toChar() shouldBe '1'
+        reader.readToNextIncludingCurrent('|').asText() shouldBe "1234"
+
+        reader.goToFirstRead()
+        reader.read()
+
+
+        reader.readToNextIncludingCurrent('|', include = true).asText() shouldBe "1234|"
+
+        reader.goToFirstRead()
+        reader.readToNextIncludingCurrent('|', include = true).asText() shouldBe "1234|"
+        reader.readToNextIncludingCurrent('|').asText() shouldBe "|56789"
+    }
+
+
+    @Test
+    fun currentPositionFromFirstRead(){
+        val TEXT = "1234|56789|123"
+        val reader = createReader(TEXT)
+        reader.currentPositionFromFirstRead shouldBe -1
+        reader.read()
+        reader.currentPositionFromFirstRead shouldBe 0
+        reader.read()
+        reader.currentPositionFromFirstRead shouldBe 1
+        reader.read()
+        reader.currentPositionFromFirstRead shouldBe 2
+
+
+        reader.goToFirstRead()
+        reader.currentPositionFromFirstRead shouldBe -1
+        reader.read()
+        reader.currentPositionFromFirstRead shouldBe 0
+        reader.read()
+        reader.currentPositionFromFirstRead shouldBe 1
+        reader.read()
+        reader.currentPositionFromFirstRead shouldBe 2
+
+    }
+
+
+    @Test
+    fun goBackToChar(){
+        val TEXT = "12345|6789123"
+        val reader = createReader(TEXT)
+        reader.readText()
+        reader.goBackTo('|') shouldBe true
+        reader.getCurrent().toChar() shouldBe '|'
+        reader.read().toChar() shouldBe '6'
+
+        reader.goToLastRead()
+        reader.goBackTo('|', include = true) shouldBe true
+        reader.getCurrent().toChar() shouldBe '5'
+        reader.read().toChar() shouldBe '|'
+    }
+
+
+
+
+    @Test
+    fun goBackToChars(){
+        val TEXT = "12345|6789123"
+        val reader = createReader(TEXT)
+        reader.readText()
+        reader.goBackTo('|', '5') shouldBe true
+        reader.getCurrent().toChar() shouldBe '|'
+        reader.read().toChar() shouldBe '6'
+
+        reader.goToLastRead()
+        reader.goBackTo('|' ,'5', include = true) shouldBe true
+        reader.getCurrent().toChar() shouldBe '5'
+        reader.read().toChar() shouldBe '|'
+    }
+
+
+
+
+}

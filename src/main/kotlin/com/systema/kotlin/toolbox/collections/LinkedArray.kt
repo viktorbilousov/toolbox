@@ -1,0 +1,196 @@
+package com.systema.kotlin.toolbox.collections
+
+import java.util.Arrays
+import kotlin.math.abs
+
+class LinkedArray<E>(private val capability: Int) : Collection<E> {
+
+    constructor() : this(1000)
+
+    override var size: Int = 0
+    private set;
+
+    private val array: Array<Any?> = Array(capability) {null}
+
+    private var firstElementPointer = -1;
+    private var lastElementPointer = -1;
+    private var readPointer = -1
+    private var markPosition = -1;
+
+
+    val currentPositionFromLastRead: Int get()  {
+        val diff =  lastElementPointer - readPointer
+        if(diff < 0) return diff + size
+        return diff
+    }
+
+    val currentPositionFromFirstRead: Int get() {
+        val diff = readPointer - firstElementPointer
+        if(diff < 0) return diff + size
+        return diff
+    }
+
+
+    init {
+        require(capability > 1)
+    }
+
+    override fun contains(element: E): Boolean {
+        return array.contains(element)
+    }
+
+    override fun containsAll(elements: Collection<E>): Boolean {
+        for (element in elements) {
+            if(!array.contains(element)){
+                return false
+            }
+        }
+        return true
+    }
+
+    override fun isEmpty(): Boolean {
+       return size == 0
+    }
+
+    override fun iterator(): Iterator<E> {
+        return toList().iterator()
+    }
+
+    fun addAll(collection: Collection<E>){
+        for (e in collection) {
+            add(e)
+        }
+    }
+
+
+    fun addAll(vararg collection: E){
+        for (e in collection) {
+            add(e)
+        }
+    }
+
+    fun add(element: E){
+        if(size == capability){
+            lastElementPointer = (lastElementPointer + 1) % capability
+            firstElementPointer = (firstElementPointer + 1) % capability
+            readPointer = (readPointer + 1) % capability
+        }
+        else{
+            size++
+            lastElementPointer++
+            readPointer ++;
+            if(size == 1){
+                firstElementPointer = 0
+            }
+        }
+
+        array[lastElementPointer] = element
+    }
+
+    fun clear(){
+        Arrays.fill(array, null)
+        size = 0
+        lastElementPointer = -1
+        firstElementPointer = -1
+        readPointer = 0
+    }
+
+   fun getCurrent(): E? {
+       if(!hasCurrent()) return null
+       return array[readPointer] as? E
+   }
+
+
+    fun goNext(): Boolean{
+        if(!hasNext()) return false
+        readPointer = (readPointer + 1) % capability
+        return true
+    }
+
+    fun goNext(steps: Int): Boolean{
+        for (i in 1 .. steps){
+            if(!goNext()) return false
+        }
+        return true
+    }
+
+
+    fun goBack(): Boolean{
+        if(!hasPrev()){
+            return false
+        }
+        readPointer--;
+        if(readPointer == -1 ){
+            readPointer = capability - 1
+        }
+        return true
+    }
+
+
+    fun goBack(steps: Int): Boolean {
+        for (i in 1 .. steps){
+            if(!goBack()) return false
+        }
+        return true
+    }
+
+    fun goToFirstRead() : Boolean {
+        if(isEmpty()) return false
+        readPointer = firstElementPointer
+        return true
+    }
+
+
+    fun markPosition(){
+        markPosition = readPointer
+    }
+
+    fun moveToMarkedPosition(){
+        if(markPosition == -1) {
+            goToLastRead()
+            return
+        }
+        readPointer = markPosition
+    }
+
+    fun gotoReadPositionFromLastRead(position : Int){
+        goToLastRead()
+        goBack(position)
+    }
+
+    fun goToLastRead(): Boolean {
+        if(isEmpty()) return false
+        readPointer = lastElementPointer
+        return true
+    }
+
+    fun toList() : List<E>{
+        val list = mutableListOf<E>();
+        for (i in firstElementPointer until capability){
+            list.add(array[i] as E)
+            if(i == lastElementPointer) {
+                return list
+            }
+        }
+
+        for (i in 0 .. lastElementPointer){
+            list.add(array[i] as E)
+        }
+
+        return list
+    }
+
+    fun hasNext(): Boolean{
+        return !isEmpty() && (readPointer != lastElementPointer)
+    }
+
+    fun hasCurrent(): Boolean{
+        return !isEmpty()
+    }
+
+    fun hasPrev(): Boolean{
+        return readPointer != firstElementPointer && !isEmpty()
+    }
+
+
+}

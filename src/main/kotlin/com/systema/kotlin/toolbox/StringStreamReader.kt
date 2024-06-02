@@ -1,14 +1,16 @@
 package com.systema.kotlin.toolbox
 
 import java.io.StringReader
+import java.util.LinkedList
 import kotlin.math.max
 
+@Deprecated("Use TextReaderWithMemory(StreamReader(str))")
 open class StringStreamReader(str: String, pufferLen : Int = 300): StringReader(str) {
 
     private val sb = java.lang.StringBuilder()
     var returnLastByManualReadNext  = false;
     val pufferLen: Int = max(1, pufferLen)
-    val puffer = mutableListOf<Char>()
+    val puffer = ArrayList<Char>(pufferLen+1)
     private var pointer : Int = 0
         private set
 
@@ -24,7 +26,7 @@ open class StringStreamReader(str: String, pufferLen : Int = 300): StringReader(
     val currentPositionIndex get() = readCharactersInLineCnt - pointer - 1
 
     private fun putToPuffer(char: Char){
-        puffer.add(0, char)
+        puffer.add(0, char)  //BAD
         if(puffer.size > pufferLen) puffer.removeAt(pufferLen)
     }
 

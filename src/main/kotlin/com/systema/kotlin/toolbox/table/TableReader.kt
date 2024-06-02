@@ -1,8 +1,22 @@
 package com.systema.kotlin.toolbox.table
 
-object TableReader {
+import com.systema.kotlin.toolbox.IParser
+import java.io.InputStream
+import java.io.Reader
 
-    fun parse(table: String, skipHeader: Boolean = false) : Map<Int, List<String>> {
+object TableReader: IParser<Map<Int, List<String>>> {
+
+    override fun parse(inputStream: InputStream): Map<Int, List<String>> = parse(inputStream.bufferedReader().readText())
+
+    override fun parse(string: String): Map<Int, List<String>> {
+        return parse(string, false)
+    }
+
+    override fun parse(reader: Reader): Map<Int, List<String>> {
+        return parse(reader.readText())
+    }
+
+    fun parse(table: String, skipHeader: Boolean) : Map<Int, List<String>> {
         val lines = table.lines()
         val index = lines.indexOfFirst { TableMarginInfo.isLineMarginInfo(it) }
         require(index != -1) {"Cannot find Table Margin Info in a table!"}
@@ -11,7 +25,7 @@ object TableReader {
         return parse(lines.subList(index, lines.size), marginHeader, skipHeader)
     }
 
-    fun parse(table: String, marginInfo: TableMarginInfo, skipHeader: Boolean = false,) : Map<Int, List<String>> {
+    fun parse(table: String, marginInfo: TableMarginInfo, skipHeader: Boolean = false) : Map<Int, List<String>> {
         val lines = table.lines().map { it.trim() }.filter { it.isNotEmpty() }
         return parse(lines, marginInfo, skipHeader)
     }
