@@ -7,7 +7,7 @@ import java.io.StringReader
 open class TextReaderWithMemory: ReaderWithMemory {
     constructor(reader: Reader, bufferLen: Int = defaultBufferSize) : super(reader, bufferLen)
 
-    var readLineCnt: Long = 0
+    var readLineCnt: Long = 1
     private set
 
 

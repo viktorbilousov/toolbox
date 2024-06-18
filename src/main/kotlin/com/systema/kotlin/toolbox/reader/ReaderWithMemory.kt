@@ -176,7 +176,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     }
 
     override fun getNext() : Int {
-        if(buffer.hasNext()) return -1
+        if(!hasNext())  return -1
         buffer.markPosition()
         val v = getNextAndMove() ?: -1
         buffer.moveToMarkedPosition()
@@ -184,7 +184,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     }
 
     fun getNextAndMove() : Int {
-        if(buffer.hasNext()) return -1
+        if(!hasNext()) return -1
         goNext()
         return buffer.getCurrent() ?: -1
     }
@@ -311,6 +311,11 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
         // positions to shift
         val puffDif = currentPositionFromFirstRead - currentPositionBefore
 
+        // nothing to return
+        if(currentPositionBefore == currentPositionFromFirstRead) {
+            return if(nullIfNotFound) null
+            else CharArray(0)
+        }
 
         val currentPositionFromLastRead = currentPositionFromLastRead
 
