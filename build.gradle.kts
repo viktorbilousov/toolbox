@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.systema.kotlin"
-version = "1.2"
+version = "1.2-SNAPSHOT"
 
 apply(plugin = "configure-nexus-publication")  // publish to the systema maven repository
 

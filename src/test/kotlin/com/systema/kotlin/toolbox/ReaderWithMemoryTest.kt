@@ -2,7 +2,6 @@ package com.systema.kotlin.toolbox
 
 import com.systema.kotlin.toolbox.reader.BiReader
 import com.systema.kotlin.toolbox.reader.ReaderWithMemory
-import com.systema.kotlin.toolbox.reader.StringBiReader
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import org.junit.jupiter.api.Test

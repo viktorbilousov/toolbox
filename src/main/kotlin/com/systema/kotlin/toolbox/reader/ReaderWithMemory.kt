@@ -213,12 +213,12 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     }
 
 
-    override fun goBackTo(vararg char: Char, include: Boolean): Boolean {
+    override fun goBackTo(vararg char: Char, inclusive: Boolean): Boolean {
         while (buffer.hasPrev()){
             buffer.goBack()
             if(char.contains(buffer.getCurrent()!!.toChar())) {
-                if(include){
-                    goBack()
+                if(!inclusive){
+                    goNext()
                 }
                 return true
             }
@@ -240,7 +240,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
             goNext()
 
             if(code == buffer.getCurrent()!!) {
-                if(include){
+                if(!include){
                     goBack()
                 }
                 return true
@@ -261,14 +261,14 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
         return false
     }
 
-    override fun goToNext(vararg char: Char, include: Boolean): Boolean{
+    override fun goToNext(vararg char: Char, inclusive: Boolean): Boolean{
         if(char.size == 1){
-            return goToNextChar(char[0], include)
+            return goToNextChar(char[0], inclusive)
         }
         while (buffer.hasNext()){
             goNext()
             if(char.contains(buffer.getCurrent()!!.toChar())) {
-                if(!include){
+                if(!inclusive){
                     buffer.goBack()
                 }
                 return true
@@ -278,7 +278,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
             val c = read()
             if(c == -1) break
             if(char.contains(c.toChar())){
-                if(!include){
+                if(!inclusive){
                     buffer.goBack()
                 }
                 return true
@@ -289,22 +289,22 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
 
 
     private fun goBackToCharAndGetAllToLastRead(vararg char: Char, include: Boolean = false, nullIfNotFound: Boolean = false): CharArray?{
-        if(!goBackTo(*char, include = include) && nullIfNotFound) return null
+        if(!goBackTo(*char, inclusive = include) && nullIfNotFound) return null
         return getFromCurrentPositionTo(0)
     }
 
-    override fun goBackToCharAndGetAllToLastRead(vararg char: Char, include: Boolean): CharArray {
-        return goBackToCharAndGetAllToLastRead(*char,  include = include, nullIfNotFound = false)!!
+    override fun goBackToCharAndGetAllToLastRead(vararg char: Char, inclusive: Boolean): CharArray {
+        return goBackToCharAndGetAllToLastRead(*char,  include = inclusive, nullIfNotFound = false)!!
     }
 
-    override fun goBackToCharAndGetAllToLastReadOrNull(vararg char: Char, include: Boolean): CharArray?{
-        return goBackToCharAndGetAllToLastRead(*char,  include = include, nullIfNotFound = true)
+    override fun goBackToCharAndGetAllToLastReadOrNull(vararg char: Char, inclusive: Boolean): CharArray?{
+        return goBackToCharAndGetAllToLastRead(*char,  include = inclusive, nullIfNotFound = true)
     }
 
     private fun readToNextIncludedOrEnd( nullIfNotFound: Boolean, includeCurrent: Boolean, includeLast: Boolean, vararg char: Char): CharArray? {
         val currentPositionBefore = currentPositionFromFirstRead
 
-        val found = goToNext(*char, include = includeLast)
+        val found = goToNext(*char, inclusive = includeLast)
 
         if(!found && nullIfNotFound) return null
 
@@ -338,16 +338,16 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
         return getFromCurrentPositionTo(positionFromLastRead)
     }
 
-    override fun readToNextIncludingCurrentOrNull(vararg char: Char, include: Boolean): CharArray? {
-        return readToNextIncludedOrEnd(true, true, include, *char)
+    override fun readToNextIncludingCurrentOrNull(vararg char: Char, inclusive: Boolean): CharArray? {
+        return readToNextIncludedOrEnd(true, true, inclusive, *char)
     }
 
-    override fun readToNextIncludingCurrent(vararg char: Char, include: Boolean): CharArray {
-        return readToNextIncludedOrEnd(false, true, include, *char)!!
+    override fun readToNextIncludingCurrent(vararg char: Char, inclusive: Boolean): CharArray {
+        return readToNextIncludedOrEnd(false, true, inclusive, *char)!!
     }
 
-    override fun readToNext(vararg char: Char, include: Boolean): CharArray {
-        return readToNextIncludedOrEnd( false, false,  include, *char)!!
+    override fun readToNext(vararg char: Char, inclusive: Boolean): CharArray {
+        return readToNextIncludedOrEnd( false, false,  inclusive, *char)!!
     }
 
     override fun readToNextOrNull(vararg char: Char, include: Boolean): CharArray? {
@@ -390,6 +390,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
             array[i] = buffer.getCurrent()!!.toChar()
             goNext();
         }
+        buffer.moveToMarkedPosition()
         return array
 
     }

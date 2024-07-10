@@ -66,13 +66,18 @@ open class TextReaderWithMemory: ReaderWithMemory {
 
     override fun read(cbuf: CharArray, off: Int, len: Int): Int {
 
+        // we need find a new lines only in a new read characted
+        // when reader achive end of buffer buffer.currentPositionFromLastRead == 0
+        // so we need to ignore buffered values, because they were alredy read and checked
         val bufferPosition = buffer.currentPositionFromLastRead;
         val readLen =  super.read(cbuf, off, len)
-        if(readLen != -1) return readLen;
-        if(bufferPosition == 0) return readLen
-        for(i in off + bufferPosition .. len){
-            if(cbuf[i] == '\n'){
-                readLineCnt++;
+        if(readLen != -1 && buffer.currentPositionFromLastRead == 0 && readLen > bufferPosition) {
+            val fromIndex = off + bufferPosition
+            val toIndex = fromIndex + len - 1
+            for (i in fromIndex.. toIndex) {
+                if (cbuf[i] == '\n') {
+                    readLineCnt++;
+                }
             }
         }
         return readLen
