@@ -366,7 +366,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     }
 
     override fun hasCurrent(): Boolean {
-        return true
+        return getCurrent() != -1
     }
 
     override fun goNext(): Boolean {
