@@ -2,7 +2,8 @@
 
 package com.systema.kotlin.toolbox
 
-import com.systema.kotlin.toolbox.reader.BiReader
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.awt.Point
 import java.awt.Rectangle
 import java.io.File
@@ -10,7 +11,6 @@ import java.io.Reader
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.logging.Logger
 import kotlin.reflect.KClass
 import kotlin.reflect.cast
 import kotlin.time.Duration
@@ -48,6 +48,24 @@ fun String.splitAndTrim(vararg delimiters : String) : List<String> {
 fun String.inline(newLineSeparator: String = "\\n") = this.replace("\r", "").replace("\n", newLineSeparator)
 
 fun String.lines(lineSeparator: String = "\n", trim: Boolean = false) = this.split(lineSeparator).map { if(trim) it.trim() else it  }
+
+fun String.toStringWihtNumbersOfLines(): String{
+    val lines = this.split("\n")
+    val linesCnt = lines.size.toString().length
+
+    val sb = StringBuilder()
+    var i = 1
+    for (line in lines) {
+        sb
+            .spaces(linesCnt - i.toString().length + 1)
+            .append(i.toString())
+            .append("|    ")
+            .append(line)
+            .newLine()
+        i++
+    }
+    return sb.trimEnd().toString()
+}
 
 
 //#################### Number ####################
@@ -287,11 +305,28 @@ fun getFiles(fileOrFolderPath: String): List<File>{
 // ################### String builders ###################
 
 fun StringBuilder.newLine(cnt: Int = 1): StringBuilder {
+    return repeat('\n', cnt)
+}
+
+fun StringBuilder.spaces(cnt: Int): StringBuilder {
+    return repeat(' ', cnt)
+
+}
+
+fun StringBuilder.repeat(char: Char, cnt: Int): StringBuilder {
     for ( i in 1..cnt){
-        this.append("\n")
+        this.append(char)
     }
     return this
 }
+
+fun StringBuilder.repeat(text: String, cnt: Int): StringBuilder {
+    for ( i in 1..cnt){
+        this.append(text)
+    }
+    return this
+}
+
 
 // ################### Loggers ###################
 
@@ -307,11 +342,11 @@ private fun loggerAnyToName(any: Any): String{
 
 fun CharArray.asText() = String(this)
 
-fun logger(any: Any): Logger = Logger.getLogger(loggerAnyToName(any))
-fun logger(clazz: Class<*>): Logger = Logger.getLogger(clazz.simpleName)
-inline fun <reified T> logger() : Logger = Logger.getLogger(T::class.java.simpleName)
-fun loggerWithId(any: Any, id: String): Logger = Logger.getLogger(loggerAnyToName(any) + "#" + id)
-inline fun <reified T> loggerWithId(id: String): Logger = Logger.getLogger(T::class.java.simpleName + "#" + id)
+fun logger(any: Any): Logger = LoggerFactory.getLogger(loggerAnyToName(any))
+fun logger(clazz: Class<*>): Logger = LoggerFactory.getLogger(clazz.simpleName)
+inline fun <reified T> logger() : Logger = LoggerFactory.getLogger(T::class.java.simpleName)
+fun loggerWithId(any: Any, id: String): Logger = LoggerFactory.getLogger(loggerAnyToName(any) + "#" + id)
+inline fun <reified T> loggerWithId(id: String): Logger = LoggerFactory.getLogger(T::class.java.simpleName + "#" + id)
 
 
 
@@ -348,3 +383,4 @@ fun Reader.readChar(): Char? {
 //    }
 //    return this
 //}
+

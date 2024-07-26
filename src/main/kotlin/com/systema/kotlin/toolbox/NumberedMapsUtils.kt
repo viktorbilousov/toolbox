@@ -5,11 +5,10 @@ package com.systema.kotlin.toolbox
 import com.systema.kotlin.toolbox.time.HasTime
 import com.systema.kotlin.toolbox.time.between
 import java.time.Instant
-import java.util.logging.Logger
 
 object NumberedMapsUtils {
 
-    private val logger: Logger = Logger.getLogger(NumberedMapsUtils::class.java.getName())
+    private val logger = logger(this)
 
     fun <T> wrapToNumberedList(list: Collection<T>, beginNumber: Int = 1): NumberedMap<T> {
         return wrapToSortedNumberedList(list, beginNumber){ o1, o2 -> 1  }
