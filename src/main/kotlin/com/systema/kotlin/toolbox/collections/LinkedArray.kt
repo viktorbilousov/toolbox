@@ -1,7 +1,6 @@
 package com.systema.kotlin.toolbox.collections
 
 import java.util.Arrays
-import kotlin.math.abs
 
 class LinkedArray<E>(private val capability: Int) : Collection<E> {
 
@@ -18,14 +17,30 @@ class LinkedArray<E>(private val capability: Int) : Collection<E> {
     private var markPosition = -1;
 
 
+    val onFirstPosition : Boolean = readPointer == -1
+
+    /**
+     * How many element need to read to get last element
+     * 0 -> the current element is actual
+     */
     val currentPositionFromLastRead: Int get()  {
         val diff =  lastElementPointer - readPointer
+        // diff < 0 when size == capability
         if(diff < 0) return diff + size
         return diff
     }
 
+
+
+    /**
+     *
+     *                [a, b, c, d]
+     *   firstRead -1  0  1  2  3
+     *   lastRead   4  3  2  1  0
+     */
     val currentPositionFromFirstRead: Int get() {
         val diff = readPointer - firstElementPointer
+        // diff < 0 when size == capability
         if(diff < 0) return diff + size
         return diff
     }
@@ -95,6 +110,11 @@ class LinkedArray<E>(private val capability: Int) : Collection<E> {
         readPointer = 0
     }
 
+    fun getCurrentOrNext() : E?{
+        if(!hasCurrent()) goNext()
+        return getCurrent()
+    }
+
    fun getCurrent(): E? {
        if(!hasCurrent()) return null
        return array[readPointer] as? E
@@ -103,7 +123,12 @@ class LinkedArray<E>(private val capability: Int) : Collection<E> {
 
     fun goNext(): Boolean{
         if(!hasNext()) return false
-        readPointer = (readPointer + 1) % capability
+        if(readPointer == -1) {
+            readPointer = firstElementPointer
+        }
+        else {
+            readPointer = (readPointer + 1) % capability
+        }
         return true
     }
 
@@ -120,9 +145,6 @@ class LinkedArray<E>(private val capability: Int) : Collection<E> {
             return false
         }
         readPointer--;
-        if(readPointer == -1 ){
-            readPointer = capability - 1
-        }
         return true
     }
 
@@ -185,11 +207,11 @@ class LinkedArray<E>(private val capability: Int) : Collection<E> {
     }
 
     fun hasCurrent(): Boolean{
-        return !isEmpty()
+        return !isEmpty() && readPointer != -1
     }
 
     fun hasPrev(): Boolean{
-        return readPointer != firstElementPointer && !isEmpty()
+        return !isEmpty() && readPointer != -1
     }
 
 

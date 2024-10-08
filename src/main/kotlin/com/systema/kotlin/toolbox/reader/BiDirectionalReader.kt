@@ -2,7 +2,21 @@ package com.systema.kotlin.toolbox.reader
 
 interface BiDirectionalReader {
 
+
+    /**
+     *
+     *                [a, b, c, d]
+     *   firstRead -1  0  1  2  3
+     *   lastRead   4  3  2  1  0
+     */
     val currentPositionFromLastRead: Long
+
+    /**
+     *                [a, b, c, d]
+     *   values    -1  0  1  2  3
+     *   readCnt    4  4  4  4  4
+     *   lastRead   4  3  2  1  0
+     */
     val currentPositionFromFirstRead: Long
 
 
@@ -131,4 +145,9 @@ interface BiDirectionalReader {
     fun readToNextOrNull(vararg char: Char, include: Boolean = false): CharArray?
     fun readToNextIncludingCurrent(vararg char: Char, inclusive: Boolean = false): CharArray
     fun readToNextIncludingCurrentOrNull(vararg char: Char, inclusive: Boolean = false): CharArray?
+
+
+    fun markPosition() : Long
+    fun markPosition(readAheadLimit: Int) : Long
+    fun reset(markedPosition: Long)
 }

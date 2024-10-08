@@ -1,5 +1,6 @@
 import com.systema.kotlin.toolbox.collections.LinkedArray
 import com.systema.kotlin.toolbox.reader.ReaderWithMemory
+import io.kotest.assertions.assertSoftly
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
@@ -95,8 +96,10 @@ class LinkedArrayTest {
         collection.addAll(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
         for (i in 0..9) {
             collection.getCurrent() shouldBe 10 - i
-            collection.goBack() shouldBe (i != 9)
+            collection.goBack() shouldBe  true
         }
+        collection.goBack() shouldBe false
+        collection.getCurrent() shouldBe null
     }
 
     @Test
@@ -113,8 +116,9 @@ class LinkedArrayTest {
         val collection = LinkedArray<Int>(10)
         collection.addAll(1)
         collection.getCurrent() shouldBe 1
+        collection.goBack() shouldBe true
+        collection.getCurrent() shouldBe null
         collection.goBack() shouldBe false
-        collection.getCurrent() shouldBe 1
     }
 
     @Test
@@ -134,8 +138,9 @@ class LinkedArrayTest {
         collection.getCurrent() shouldBe 10
         collection.goToFirstRead() shouldBe true
         collection.getCurrent() shouldBe 1
+        collection.goBack() shouldBe true
+        collection.getCurrent() shouldBe null
         collection.goBack() shouldBe false
-        collection.getCurrent() shouldBe 1
     }
 
     @Test
@@ -150,35 +155,39 @@ class LinkedArrayTest {
 
     @Test
     fun shouldGetCurrentReadPositionWhenBufferIsFull() {
-        val TEXT = "123456789"
-        val reader = LinkedArray<Int>(5)
-        reader.addAll(1, 2, 3, 4, 5, 6, 7, 8, 9)
-        reader.currentPositionFromFirstRead shouldBe 4
-        reader.currentPositionFromLastRead shouldBe 0
-        reader.size shouldBe 5
+        assertSoftly {
+            val reader = LinkedArray<Int>(5)
+            reader.addAll(1, 2, 3, 4, 5, 6, 7, 8, 9)
+            reader.currentPositionFromFirstRead shouldBe 4
+            reader.currentPositionFromLastRead shouldBe 0
+            reader.getCurrent() shouldBe 9
+            reader.size shouldBe 5
 
-        reader.goBack()
-        reader.currentPositionFromFirstRead shouldBe 3
-        reader.currentPositionFromLastRead shouldBe 1
-        reader.size shouldBe 5
-
-
-        reader.goBack()
-        reader.currentPositionFromFirstRead shouldBe 2
-        reader.currentPositionFromLastRead shouldBe 2
-        reader.size shouldBe 5
+            reader.goBack()
+            reader.currentPositionFromFirstRead shouldBe 3
+            reader.currentPositionFromLastRead shouldBe 1
+            reader.getCurrent() shouldBe 8
+            reader.size shouldBe 5
 
 
-        reader.goToFirstRead()
-        reader.currentPositionFromFirstRead shouldBe 0
-        reader.currentPositionFromLastRead shouldBe 4
-        reader.size shouldBe 5
+            reader.goBack()
+            reader.currentPositionFromFirstRead shouldBe 2
+            reader.currentPositionFromLastRead shouldBe 2
+            reader.getCurrent() shouldBe 7
+            reader.size shouldBe 5
 
 
-        reader.goToLastRead()
-        reader.currentPositionFromFirstRead shouldBe 4
-        reader.currentPositionFromLastRead shouldBe 0
-        reader.size shouldBe 5
+            reader.goToFirstRead()
+            reader.currentPositionFromFirstRead shouldBe 0
+            reader.currentPositionFromLastRead shouldBe 4
+            reader.getCurrent() shouldBe 5
+            reader.size shouldBe 5
 
+
+            reader.goToLastRead()
+            reader.currentPositionFromFirstRead shouldBe 4
+            reader.currentPositionFromLastRead shouldBe 0
+            reader.size shouldBe 5
+        }
     }
 }

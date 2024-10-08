@@ -2,22 +2,39 @@ package com.systema.kotlin.toolbox.reader
 
 import com.systema.kotlin.toolbox.collections.LinkedArray
 import java.io.BufferedReader
+import java.io.IOException
 import java.io.Reader
 
 open class ReaderWithMemory: BiReader, BiDirectionalReader {
     protected val buffer : LinkedArray<Int>
     private val inReader: Reader
 
+    /**
+     *
+     *                [a, b, c, d]
+     *   firstRead -1  0  1  2  3
+     *   lastRead   4  3  2  1  0
+     */
     override val currentPositionFromLastRead  get() = buffer.currentPositionFromLastRead.toLong()
-    val currentPositionFromFirstReadBuffered  get() = buffer.currentPositionFromFirstRead
+
+    /**
+     *                [a, b, c, d]
+     *   values    -1  0  1  2  3
+     *   readCnt    4  4  4  4  4
+     *   lastRead   4  3  2  1  0
+     */
     override val currentPositionFromFirstRead : Long get() {
-        if(lastElementAchived) return -1
-        return readCnt - buffer.currentPositionFromLastRead -1
+        if(!buffer.hasCurrent()) return -1;
+        // last = readCnt(4) - bufferLastReadPosition(0) - 1 = 3
+        // first = readCnt(4) - bufferLastReadPosition(0)
+
+        return readCnt - buffer.currentPositionFromLastRead - 1
     }
+
     var readCnt: Long = 0
     private set;
 
-    private var lastElementAchived = true
+    private val bufferLen : Int
 
     companion object{
 
@@ -31,6 +48,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     constructor(reader: Reader, bufferLen: Int = defaultBufferSize) : super(reader){
         buffer = LinkedArray(bufferLen)
         this.inReader = reader;
+        this.bufferLen = bufferLen;
     }
 
     /**
@@ -40,18 +58,11 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     private fun readBufferTo(cbuf: CharArray, off: Int, len: Int): Int{
 
         var i = 0
-        goNext()
-        while (i != len){
+
+        while (i != len && goNext()){
+
             cbuf[i+off] = Char(buffer.getCurrent()!!)
             i++;
-            if(buffer.hasNext()){
-                if(i != len) {
-                    buffer.goNext()
-                }
-            }
-            else{
-                break
-            }
 
         }
 
@@ -60,31 +71,42 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
 
     override fun read(cbuf: CharArray, off: Int, len: Int): Int {
 
-        var readFromBuffer = minOf(Math.max(buffer.currentPositionFromLastRead, 0), len)
+        /**
+         * when currentPositionFromLastRead > 0, some values are buffered and need to be added in a output array
+         *
+         * for example
+         *
+         * buffer   1 1 1 1 2 3 4 5
+         * current            X
+         * lastread 6 7 5 4 3 2 1 0
+         *
+         * currentPositionFromLastRead = 2
+         * output array ( 4, 5 , ... read from stream)
+         *
+         */
+        val readFromBuffer = minOf(buffer.currentPositionFromLastRead, len)
 
 
-        if(readFromBuffer == 0 && lastElementAchived && buffer.isNotEmpty()){
-            readFromBuffer = 1;
-        }
-
-        if(readFromBuffer > 0){
+        if (readFromBuffer > 0) {
             readBufferTo(cbuf, off, readFromBuffer)
         }
 
 
+        // read rest from stream
         val read =  inReader.read(cbuf, off+readFromBuffer, len-readFromBuffer)
-        if(read == -1) return read
-        for (i in 0 until read){
+        if(read == -1) {
+            if(readFromBuffer == 0) return -1
+            return readFromBuffer
+        }
+
+        // add new read values to buffer
+        for (i in readFromBuffer until read+readFromBuffer){
             addToReadBuffer(cbuf[i])
         }
+
+        // increase internal counter
         readCnt += read
 
-        if(lastElementAchived){
-            if(readFromBuffer == 1){
-                buffer.goToFirstRead()
-            }
-            lastElementAchived = false
-        }
 
         return read + readFromBuffer;
     }
@@ -108,17 +130,14 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     }
 
     override fun getCurrent(): Int {
-        if(lastElementAchived) return -1 // expected read(..)
         return buffer.getCurrent() ?: -1
     }
 
     override fun goToFirstRead(): Boolean {
-        lastElementAchived = true
-        return buffer.goToFirstRead()
+        return  buffer.goToFirstRead() && buffer.goBack()
     }
 
     override fun goToLastRead(): Boolean {
-        lastElementAchived = false
         return buffer.goToLastRead()
     }
 
@@ -129,12 +148,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     }
 
     override fun goBack(): Boolean{
-        val res =  buffer.goBack()
-        if(!lastElementAchived && !res) {
-            lastElementAchived = true
-            return true;
-        }
-        return res
+        return buffer.goBack()
     }
 
     override fun getPrevAndMove(): Int{
@@ -195,20 +209,54 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
      * If current position is last read -> returns last read position
      */
     override fun getFromCurrentPositionToLastRead(): CharArray {
-        return getFromCurrentPositionTo(0)
+        return getBufferedFromCurrentPositionInclusiveTo(0)
     }
 
-    private fun getFromCurrentPositionTo(positionFromLastRead: Int): CharArray {
-        val size = buffer.currentPositionFromLastRead + 1 - positionFromLastRead
+
+    private fun getBufferedFromCurrentPositionInclusiveTo(positionFromLastRead: Int): CharArray {
+
+        /**
+         *
+         * buffer                            [  a b c d e f g ] (7 el)
+         * currentPositionFromLastRead    7     6 5 4 3 2 1 0
+         *
+         *
+         * if current position is 5 und positionFromLastRead 1 , size = 5-1 = 4
+         *
+         */
+
+
+        // read all:
+        // positionFromLastRead = 0
+        // current position if 7 (need to read all)
+        // 7 - 0 = 0
+
+        // current position 6
+        // size 6 - 0 + 1 = 7
+
+        // current position 5
+        // size = 5 - 0 + 1 = 6
+        //        if(!buffer.onFirstPosition){
+        //           size++;
+        //        }
+
+        val size = Math.min(buffer.currentPositionFromLastRead - positionFromLastRead +1, buffer.size)
+
+
+
         val array = CharArray( size )
-        lastElementAchived = false
         for (i in 0 until  size ){
-            array[i] = buffer.getCurrent()!!.toChar()
-            goNext();
+            array[i] = buffer.getCurrentOrNext()!!.toChar()
+
+            if(i != size-1) {
+                goNext();
+            }
         }
-        if(buffer.currentPositionFromLastRead != positionFromLastRead) {
-            goBack()
-        }
+
+//        //?
+//        if(buffer.currentPositionFromLastRead != positionFromLastRead) {
+//            goBack()
+//        }
         return array
     }
 
@@ -216,7 +264,8 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     override fun goBackTo(vararg char: Char, inclusive: Boolean): Boolean {
         while (buffer.hasPrev()){
             buffer.goBack()
-            if(char.contains(buffer.getCurrent()!!.toChar())) {
+            val curr = buffer.getCurrent()?.toChar() ?: return false
+            if(char.contains(curr)) {
                 if(!inclusive){
                     goNext()
                 }
@@ -290,7 +339,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
 
     private fun goBackToCharAndGetAllToLastRead(vararg char: Char, include: Boolean = false, nullIfNotFound: Boolean = false): CharArray?{
         if(!goBackTo(*char, inclusive = include) && nullIfNotFound) return null
-        return getFromCurrentPositionTo(0)
+        return getBufferedFromCurrentPositionInclusiveTo(0)
     }
 
     override fun goBackToCharAndGetAllToLastRead(vararg char: Char, inclusive: Boolean): CharArray {
@@ -302,9 +351,18 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     }
 
     private fun readToNextIncludedOrEnd( nullIfNotFound: Boolean, includeCurrent: Boolean, includeLast: Boolean, vararg char: Char): CharArray? {
+
+        /**                     c       x
+         *                a b c d e f g h
+         * fromFRead   -1 0 1 2 3 4 5 6 7
+         *
+         *  puffDiff   7-3 = 4
+         */
+
         val currentPositionBefore = currentPositionFromFirstRead
 
-        val found = goToNext(*char, inclusive = includeLast)
+        //1234|56789|123
+        val found = goToNext(*char, inclusive = true)
 
         if(!found && nullIfNotFound) return null
 
@@ -312,30 +370,32 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
         val puffDif = currentPositionFromFirstRead - currentPositionBefore
 
         // nothing to return
-        if(currentPositionBefore == currentPositionFromFirstRead) {
+        if(puffDif == 0L) {
             return if(nullIfNotFound) null
             else CharArray(0)
         }
 
-        val currentPositionFromLastRead = currentPositionFromLastRead
-
-        // if exclude current byte -> select next position from begin to get bytes
-        goBack((puffDif - 1).toInt())
-        if(includeCurrent) goBack()
-
         // end position
-        val positionFromLastRead : Int
+        var positionFromLastRead : Int
 
         if(!found){
             // read to the end
             positionFromLastRead = 0
         }
         else{
-            // currentPositionFromLastRead is already include or exclude last element
+            // currentPositionFromLastRead is already included or excluded the last element
             positionFromLastRead = currentPositionFromLastRead.toInt()
+            if(!includeLast) positionFromLastRead++
         }
 
-        return getFromCurrentPositionTo(positionFromLastRead)
+
+        goBack(puffDif.toInt() - 1)
+
+        if(includeCurrent) goBack()
+
+
+
+        return getBufferedFromCurrentPositionInclusiveTo(positionFromLastRead)
     }
 
     override fun readToNextIncludingCurrentOrNull(vararg char: Char, inclusive: Boolean): CharArray? {
@@ -370,15 +430,6 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     }
 
     override fun goNext(): Boolean {
-        // when reader returns to first position
-        // next read should return first postion
-        if(lastElementAchived){
-            if(buffer.isNotEmpty()){
-                buffer.goToFirstRead() // do not move from firs position
-                lastElementAchived = false
-                return true
-            }
-        }
         return buffer.goNext()
     }
 
@@ -387,7 +438,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
         val array: CharArray = CharArray(buffer.currentPositionFromFirstRead + 1)
         buffer.goToFirstRead()
         for (i in array.indices){
-            array[i] = buffer.getCurrent()!!.toChar()
+            array[i] = buffer.getCurrentOrNext()!!.toChar()
             goNext();
         }
         buffer.moveToMarkedPosition()
@@ -395,5 +446,55 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
 
     }
 
+    override fun markSupported(): Boolean {
+        return true
+    }
+
+    private var markedPosition = -1L;
+    private var readAheadLimit = 0L;
+
+    override fun mark(readAheadLimit: Int) {
+        var limit = readAheadLimit;
+        if(limit <= 0){
+           limit = bufferLen
+        }
+
+        markedPosition = this.currentPositionFromFirstRead
+        this.readAheadLimit = markedPosition + limit
+    }
+
+    override fun markPosition(readAheadLimit: Int): Long {
+        var limit = readAheadLimit;
+        if(limit <= 0){
+            limit = bufferLen
+        }
+
+        markedPosition = this.currentPositionFromFirstRead
+        this.readAheadLimit = markedPosition + limit
+        return markedPosition;
+    }
+
+    override fun markPosition(): Long  = markPosition(bufferLen)
+
+    override fun reset(markedPosition: Long) {
+        if(markedPosition == -1L){
+            throw IOException("Marker is not set!")
+        }
+
+        if(currentPositionFromFirstRead > readAheadLimit){
+            throw IOException("Position is overhead!")
+        }
+
+        if(currentPositionFromFirstRead > markedPosition){
+            goBack((currentPositionFromFirstRead - markedPosition).toInt() )
+        }
+        else{
+            while (currentPositionFromFirstRead != markedPosition){
+                read()
+            }
+        }
+    }
+
+    override fun reset()  = reset(markedPosition)
 
 }
