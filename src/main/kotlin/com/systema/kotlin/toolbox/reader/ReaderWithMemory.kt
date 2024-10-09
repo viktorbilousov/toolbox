@@ -24,7 +24,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
      *   lastRead   4  3  2  1  0
      */
     override val currentPositionFromFirstRead : Long get() {
-        if(!buffer.hasCurrent()) return -1;
+        if(!buffer.hasCurrent()) return -1
         // last = readCnt(4) - bufferLastReadPosition(0) - 1 = 3
         // first = readCnt(4) - bufferLastReadPosition(0)
 
@@ -32,13 +32,13 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     }
 
     var readCnt: Long = 0
-    private set;
+    private set
 
     private val bufferLen : Int
 
     companion object{
 
-        val defaultBufferSize = 8012;
+        val defaultBufferSize = 8012
 
         fun ofBuffered(reader: Reader, bufferLen: Int = defaultBufferSize): ReaderWithMemory {
             return ReaderWithMemory(BufferedReader(reader), bufferLen)
@@ -47,8 +47,8 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
 
     constructor(reader: Reader, bufferLen: Int = defaultBufferSize) : super(reader){
         buffer = LinkedArray(bufferLen)
-        this.inReader = reader;
-        this.bufferLen = bufferLen;
+        this.inReader = reader
+        this.bufferLen = bufferLen
     }
 
     /**
@@ -62,7 +62,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
         while (i != len && goNext()){
 
             cbuf[i+off] = Char(buffer.getCurrent()!!)
-            i++;
+            i++
 
         }
 
@@ -108,7 +108,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
         readCnt += read
 
 
-        return read + readFromBuffer;
+        return read + readFromBuffer
     }
 
     override fun close() {
@@ -144,7 +144,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
 
     override fun getFirstReadAndMove() : Int{
         buffer.goToFirstRead()
-        return buffer.getCurrent() ?: -1;
+        return buffer.getCurrent() ?: -1
     }
 
     override fun goBack(): Boolean{
@@ -163,7 +163,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
 
 
     override fun getLastRead(): Int{
-        buffer.markPosition();
+        buffer.markPosition()
         val el = getLastReadAndMove()
         buffer.moveToMarkedPosition()
         return el;
@@ -171,10 +171,10 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
 
 
     override fun getFirstRead() : Int{
-        buffer.markPosition();
+        buffer.markPosition()
         val el = getFirstReadAndMove()
         buffer.moveToMarkedPosition()
-        return el;
+        return el
     }
 
     override fun getPrev(): Int{
@@ -183,10 +183,10 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
 
     override fun getPrev(steps: Int): Int{
         if(!buffer.hasPrev()) return -1
-        buffer.markPosition();
+        buffer.markPosition()
         val el = getPrevAndMove(steps)
         buffer.moveToMarkedPosition()
-        return el;
+        return el
     }
 
     override fun getNext() : Int {
@@ -249,7 +249,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
             array[i] = buffer.getCurrentOrNext()!!.toChar()
 
             if(i != size-1) {
-                goNext();
+                goNext()
             }
         }
 
@@ -296,7 +296,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
             }
         }
 
-        var cnt = 0;
+        var cnt = 0
         // read next
         while (true){
             val c = read()
@@ -445,7 +445,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
         buffer.goToFirstRead()
         for (i in array.indices){
             array[i] = buffer.getCurrentOrNext()!!.toChar()
-            goNext();
+            goNext()
         }
         buffer.moveToMarkedPosition()
         return array
@@ -456,11 +456,11 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
         return true
     }
 
-    private var markedPosition = -1L;
-    private var readAheadLimit = 0L;
+    private var markedPosition = -1L
+    private var readAheadLimit = 0L
 
     override fun mark(readAheadLimit: Int) {
-        var limit = readAheadLimit;
+        var limit = readAheadLimit
         if(limit <= 0){
            limit = bufferLen
         }
@@ -470,14 +470,14 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     }
 
     override fun markPosition(readAheadLimit: Int): Long {
-        var limit = readAheadLimit;
+        var limit = readAheadLimit
         if(limit <= 0){
             limit = bufferLen
         }
 
         markedPosition = this.currentPositionFromFirstRead
         this.readAheadLimit = markedPosition + limit
-        return markedPosition;
+        return markedPosition
     }
 
     override fun markPosition(): Long  = markPosition(bufferLen)

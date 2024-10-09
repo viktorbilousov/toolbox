@@ -71,9 +71,9 @@ fun BiReader.readToNext(text: String, inclusive: Boolean = true,  readLimit: Int
     val chars = text.chars().toArray()
     val intArray = mutableListOf<Char>()
     val sb = StringBuilder()
-    var readCnt = 0;
+    var readCnt = 0
     for (i in chars.indices){
-        if(isEndOfBuffer) readCnt++;
+        if(isEndOfBuffer) readCnt++
         val char = readChar() ?: return ""
         intArray.add(char)
         sb.append(char)
@@ -93,7 +93,7 @@ fun BiReader.readToNext(text: String, inclusive: Boolean = true,  readLimit: Int
         if(!found){
             if(!hasNext()) return sb.toString()
             intArray.removeFirst()
-            if(isEndOfBuffer) readCnt++;
+            if(isEndOfBuffer) readCnt++
             val char = readChar() ?: return sb.toString()
             if(isEndOfBuffer) readCnt++
             sb.append(char)
@@ -122,7 +122,7 @@ fun BiReader.readTextNextAndMove(cnt: Int) : String{
 
 
 fun BiReader.readNext(cnt: Int) : Array<Int>{
-    val array = readNextAndMove(cnt);
+    val array = readNextAndMove(cnt)
     goBack(array.size)
     return array
 }
@@ -187,11 +187,9 @@ private const val tabCode = '\t'.code
 
 fun BiReader.skipSpaces(): BiReader {
     val reader = this
-    var skipped = false;
     var next : Int = spaceCode
     while (next == spaceCode) {
         next = reader.read()
-        skipped = true
     }
     if(next != -1 || (reader.getPrev() != spaceCode && reader.getPrev() != tabCode)) {
         reader.goBack()

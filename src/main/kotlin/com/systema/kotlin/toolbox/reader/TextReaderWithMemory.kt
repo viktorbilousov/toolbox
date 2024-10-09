@@ -25,10 +25,10 @@ open class TextReaderWithMemory: ReaderWithMemory {
         get() {
             if(buffer.currentPositionFromLastRead == 0) return readLineCnt
             buffer.markPosition()
-            var cnt = readLineCnt;
+            var cnt = readLineCnt
             for (i in getFromCurrentPositionToLastRead()) {
                 if(i == '\n'){
-                    cnt --;
+                    cnt --
                 }
             }
             buffer.moveToMarkedPosition()
@@ -69,14 +69,14 @@ open class TextReaderWithMemory: ReaderWithMemory {
         // we need to find a new lines only in a new read character
         //  when the reader achieves the end of buffer.currentPositionFromLastRead == 0
         // so we need to ignore buffered values, because they were already read and checked
-        val bufferPosition = buffer.currentPositionFromLastRead;
+        val bufferPosition = buffer.currentPositionFromLastRead
         val readLen =  super.read(cbuf, off, len)
         if(readLen != -1 && buffer.currentPositionFromLastRead == 0 && readLen > bufferPosition) {
             val fromIndex = off + bufferPosition
             val toIndex = fromIndex + readLen - 1
             for (i in fromIndex.. toIndex) {
                 if (cbuf[i] == '\n') {
-                    readLineCnt++;
+                    readLineCnt++
                 }
             }
         }
@@ -96,7 +96,7 @@ open class TextReaderWithMemory: ReaderWithMemory {
     }
 
     fun readTextToNext(vararg char: Char): String?{
-       return readToNext(*char)?.asText()
+       return readToNext(*char).asText()
     }
 
 }
