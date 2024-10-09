@@ -133,7 +133,7 @@ interface BiDirectionalReader {
      * @param char - characters to find
      * @return true if character is found
      */
-    fun goToNext(vararg char: Char, inclusive: Boolean = false): Boolean
+    fun goToNext(vararg char: Char,  inclusive: Boolean = false, readLimit: Int = 0,): Boolean
 
 
     fun goBackToCharAndGetAllToLastRead(vararg char: Char, inclusive: Boolean = false): CharArray
@@ -141,10 +141,10 @@ interface BiDirectionalReader {
     fun getFromFirstReadToCurrent(): CharArray
 
 
-    fun readToNext(vararg char: Char, inclusive: Boolean = false): CharArray
-    fun readToNextOrNull(vararg char: Char, include: Boolean = false): CharArray?
-    fun readToNextIncludingCurrent(vararg char: Char, inclusive: Boolean = false): CharArray
-    fun readToNextIncludingCurrentOrNull(vararg char: Char, inclusive: Boolean = false): CharArray?
+    fun readToNext(vararg char: Char,  inclusive: Boolean = false, readLimit: Int = 0,): CharArray
+    fun readToNextOrNull(vararg char: Char, include: Boolean = false,  readLimit: Int = 0,): CharArray?
+    fun readToNextIncludingCurrent(vararg char: Char, inclusive: Boolean = false,  readLimit: Int = 0): CharArray
+    fun readToNextIncludingCurrentOrNull(vararg char: Char,inclusive: Boolean = false,  readLimit: Int = 0): CharArray?
 
 
     fun markPosition() : Long

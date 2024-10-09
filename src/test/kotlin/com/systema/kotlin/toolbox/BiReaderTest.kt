@@ -514,7 +514,7 @@ open abstract class BiReaderTest {
     fun readToNextStr(){
         val TEXT = "1234|56789|123"
         val reader = createReader(TEXT)
-        reader.readToNext("567", including = false) shouldBe "1234|"
+        reader.readToNext("567", inclusive = false) shouldBe "1234|"
         reader.readText() shouldBe "56789|123"
     }
 
@@ -522,7 +522,7 @@ open abstract class BiReaderTest {
     fun readToNextStringIncl(){
         val TEXT = "1234|56789|123"
         val reader = createReader(TEXT)
-        reader.readToNext("567", including = true) shouldBe "1234|567"
+        reader.readToNext("567", inclusive = true) shouldBe "1234|567"
         reader.readText() shouldBe "89|123"
     }
 
@@ -546,9 +546,24 @@ open abstract class BiReaderTest {
     fun readToBackLine(){
         val TEXT = "1234|56789|123"
         val reader = createReader(TEXT)
-        reader.readToNext("789|", including = true) shouldBe "1234|56789|"
+        reader.readToNext("789|", inclusive = true) shouldBe "1234|56789|"
         reader.goBackToLineBegin()
         reader.readText() shouldBe "1234|56789|123"
     }
+
+    @Test
+    fun readToNextWithLimit(){
+        val TEXT = "123456789|123"
+        val reader = createReader(TEXT)
+        reader.readToNext('|', readLimit = 3, inclusive = true).asText() shouldBe "123"
+    }
+    @Test
+    fun readToNextStringWithLimit(){
+        val TEXT = "123456789|123"
+        val reader = createReader(TEXT)
+        reader.readToNext(text = "9|", readLimit = 3, inclusive = true) shouldBe "123"
+    }
+
+
 
 }

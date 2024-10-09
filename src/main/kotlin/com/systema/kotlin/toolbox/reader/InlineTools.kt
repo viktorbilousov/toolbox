@@ -3,7 +3,6 @@ package com.systema.kotlin.toolbox.reader
 import com.systema.kotlin.toolbox.asText
 import com.systema.kotlin.toolbox.readChar
 import java.io.Reader
-import java.io.StringReader
 
 
 fun Reader.readChar(): Char? {
@@ -59,15 +58,26 @@ fun BiReader.goToNextAndMove(text: String): Boolean{
     return found
 }
 
+private val BiReader.isEndOfBuffer : Boolean get() = currentPositionFromLastRead == 0L
 
-fun BiReader.readToNext(text: String, including: Boolean = true): String{
+
+
+fun BiReader.readToNext(text: String, inclusive: Boolean = true,  readLimit: Int  = 0, ): String{
+    if(text.isEmpty()) return ""
+    if(text.length == 1) {
+        return readToNext(text[0], readLimit =  readLimit, inclusive = inclusive).asText()
+    }
+
     val chars = text.chars().toArray()
     val intArray = mutableListOf<Char>()
     val sb = StringBuilder()
+    var readCnt = 0;
     for (i in chars.indices){
+        if(isEndOfBuffer) readCnt++;
         val char = readChar() ?: return ""
         intArray.add(char)
         sb.append(char)
+        if(readLimit > 0 && readLimit == readCnt) return sb.toString()
     }
     var found = false
     while (!found){
@@ -83,14 +93,17 @@ fun BiReader.readToNext(text: String, including: Boolean = true): String{
         if(!found){
             if(!hasNext()) return sb.toString()
             intArray.removeFirst()
+            if(isEndOfBuffer) readCnt++;
             val char = readChar() ?: return sb.toString()
+            if(isEndOfBuffer) readCnt++
             sb.append(char)
             intArray.add(char)
+            if(readLimit > 0 && readLimit == readCnt) return sb.toString()
         }
 
     }
 
-    if(!found || including){
+    if(!found || inclusive){
         return sb.toString()
     }
 
