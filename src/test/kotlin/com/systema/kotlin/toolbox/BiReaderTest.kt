@@ -507,9 +507,19 @@ open abstract class BiReaderTest {
 
 
         reader.readText() shouldBe "|56789|123"
-
-
     }
+
+    @Test
+    fun markFirstPosition(){
+        val TEXT = "1234|56789|123"
+        val reader = createReader(TEXT)
+        val position = reader.markPosition()
+        position shouldBe -1L
+        reader.readText() shouldBe TEXT
+        reader.reset(position)
+        reader.readText() shouldBe TEXT
+    }
+
     @Test
     fun readToNextStr(){
         val TEXT = "1234|56789|123"

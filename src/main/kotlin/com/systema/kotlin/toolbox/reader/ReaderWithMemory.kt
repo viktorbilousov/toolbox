@@ -483,9 +483,6 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     override fun markPosition(): Long  = markPosition(bufferLen)
 
     override fun reset(markedPosition: Long) {
-        if(markedPosition == -1L){
-            throw IOException("Marker is not set!")
-        }
 
         if(currentPositionFromFirstRead > readAheadLimit){
             throw IOException("Position is overhead!")
