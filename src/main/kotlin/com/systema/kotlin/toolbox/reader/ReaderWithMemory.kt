@@ -456,7 +456,7 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
         return true
     }
 
-    private var markedPosition = -1L
+    private var markedPosition = -2L
     private var readAheadLimit = 0L
 
     override fun mark(readAheadLimit: Int) {
@@ -483,6 +483,9 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
     override fun markPosition(): Long  = markPosition(bufferLen)
 
     override fun reset(markedPosition: Long) {
+        if(markedPosition == -2L){
+            throw IOException("Marker is not set!")
+        }
 
         if(currentPositionFromFirstRead > readAheadLimit){
             throw IOException("Position is overhead!")
