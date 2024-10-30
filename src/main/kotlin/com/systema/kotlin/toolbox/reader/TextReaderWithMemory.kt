@@ -15,34 +15,35 @@ open class TextReaderWithMemory: ReaderWithMemory {
 
 
     val bufferedLines : List<String> get() {
-        buffer.markPosition()
-        buffer.goToFirstRead()
-        return getFromCurrentPositionToLastReadText().split("\n")
+        val position = markPositionInternal()
+        val lines = getFromCurrentPositionToLastReadText().split("\n")
+        reset(position)
+        return lines
     }
 
 
     val currentLineCnt: Long
         get() {
             if(buffer.currentPositionFromLastRead == 0) return readLineCnt
-            buffer.markPosition()
+            val position = markPositionInternal()
             var cnt = readLineCnt
             for (i in getFromCurrentPositionToLastRead()) {
                 if(i == '\n'){
                     cnt --
                 }
             }
-            buffer.moveToMarkedPosition()
+            reset(position)
             return cnt
         }
 
     val positionInLine : Long
         get() {
             val currentPositionFromFirstReadBefore = currentPositionFromFirstRead
-            buffer.markPosition()
+            val internalPosition = markPositionInternal()
             goBackTo('\n')
             val position = currentPositionFromFirstReadBefore - buffer.currentPositionFromFirstRead
-            buffer.moveToMarkedPosition()
-            return position.toLong()
+            reset(internalPosition)
+            return position
         }
 
     companion object{

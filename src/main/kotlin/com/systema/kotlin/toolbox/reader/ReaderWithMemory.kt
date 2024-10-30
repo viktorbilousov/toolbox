@@ -480,6 +480,16 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
         return markedPosition
     }
 
+
+    protected fun markPositionInternal(readLimit: Int) : Long{
+        val markedPositionBefore = markedPosition;
+        val newMarkedPosition = markPosition(readLimit)
+        markedPosition = markedPositionBefore
+        return newMarkedPosition
+    }
+
+    protected fun markPositionInternal() : Long = markPositionInternal(bufferLen)
+
     override fun markPosition(): Long  = markPosition(bufferLen)
 
     override fun reset(markedPosition: Long) {

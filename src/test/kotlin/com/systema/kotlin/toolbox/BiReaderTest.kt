@@ -515,8 +515,11 @@ open abstract class BiReaderTest {
         val reader = createReader(TEXT)
         val position = reader.markPosition()
         position shouldBe -1L
-        reader.readText() shouldBe TEXT
+        reader.currentPositionFromFirstRead shouldBe -1L
+        reader.readToNext("|") shouldBe "1234|"
+        reader.currentPositionFromFirstRead shouldBe 4
         reader.reset(position)
+        reader.currentPositionFromFirstRead shouldBe -1L
         reader.readText() shouldBe TEXT
     }
 
