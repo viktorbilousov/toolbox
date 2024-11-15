@@ -81,6 +81,9 @@ fun Int.iterateReversed(to: Int = 1, block: (Int) -> Unit ){
     }
 }
 
+fun Double.round(decimals: Int = 2): Double = "%.${decimals}f".format(this).toDouble()
+fun Float.round(decimals: Int = 2): Double = "%.${decimals}f".format(this).toDouble()
+
 
 //#################### Collections ####################
 

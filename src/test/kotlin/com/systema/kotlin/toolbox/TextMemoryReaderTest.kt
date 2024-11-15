@@ -10,8 +10,12 @@ import java.io.StringReader
 
 class TextMemoryReaderTest: BiReaderTest(){
 
+    override fun createReader(text: String, buffer: Int): TextReaderWithMemory {
+        return TextReaderWithMemory(StringReader(text), buffer)
+    }
+
     override fun createReader(text: String): TextReaderWithMemory {
-       return TextReaderWithMemory(text)
+        return super.createReader(text) as TextReaderWithMemory
     }
 
 
@@ -44,5 +48,7 @@ class TextMemoryReaderTest: BiReaderTest(){
         reader.currentPositionFromFirstRead shouldBe -1
 
     }
+
+
 
 }

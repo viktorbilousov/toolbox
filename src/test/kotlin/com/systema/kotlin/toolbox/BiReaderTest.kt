@@ -8,7 +8,8 @@ import org.junit.jupiter.api.Test
 
 open abstract class BiReaderTest {
 
-    abstract fun createReader(text: String) : BiReader
+    protected open fun createReader(text: String) : BiReader = createReader(text, text.length)
+    abstract fun createReader(text: String, buffer : Int) : BiReader
 
 
     companion object{
@@ -24,7 +25,7 @@ open abstract class BiReaderTest {
     fun shouldRememberText(){
         val reader = createReader(TEXT)
         reader.readText() shouldBe TEXT
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
         reader.getFromCurrentPositionToLastRead().asText() shouldBe TEXT
     }
 
@@ -57,7 +58,7 @@ open abstract class BiReaderTest {
         reader.currentPositionFromLastRead shouldBe 2
 
 
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
         reader.goBack()
         reader.currentPositionFromFirstRead shouldBe -1
         reader.currentPositionFromLastRead shouldBe 9
@@ -87,7 +88,7 @@ open abstract class BiReaderTest {
         reader.goToNext('\n', inclusive = false)
         reader.getFromFirstReadToCurrentAsText() shouldBe "1234"
         reader.getCurrentChar() shouldBe '4'
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
 
         reader.goToNext('\n', inclusive = true)
         reader.getCurrentChar() shouldBe '\n'
@@ -103,12 +104,12 @@ open abstract class BiReaderTest {
         reader.getCurrentChar() shouldBe '4'
         reader.readChar() shouldBe '|'
 
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
         reader.goToNext('|', inclusive = true) shouldBe true
         reader.getCurrentChar() shouldBe '|'
         reader.readChar() shouldBe '5'
 
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
         reader.goToNext('|', inclusive = true) shouldBe true
         reader.goToNext('|')
         reader.getCurrent().toChar() shouldBe '9'
@@ -174,12 +175,12 @@ open abstract class BiReaderTest {
             reader.readChar() shouldBe '|'
             reader.readToNext('|').asText() shouldBe "56789"
 
-            reader.goToFirstRead()
+            reader.goToFirstReadBuffered()
             reader.goBack()
 
             reader.readToNext('|', inclusive = true).asText() shouldBe "1234|"
 
-            reader.goToFirstRead()
+            reader.goToFirstReadBuffered()
             reader.readToNext('|', inclusive = true).asText() shouldBe "1234|"
             reader.readToNext('|').asText() shouldBe "56789"
         }
@@ -193,7 +194,7 @@ open abstract class BiReaderTest {
         val reader = createReader(TEXT)
         reader.readText()
 
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
         reader.goBack()
         reader.getCurrent() shouldBe  -1
         reader.goNext() shouldBe true
@@ -372,7 +373,7 @@ open abstract class BiReaderTest {
         reader.goToNext('|', '5')
         reader.currentPositionFromFirstRead shouldBe 3
 
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
         reader.goToNext('|', '5', inclusive = true)
         reader.currentPositionFromFirstRead shouldBe 4
     }
@@ -382,7 +383,7 @@ open abstract class BiReaderTest {
     fun readAfterGotoFirstReadReturnsFirstValue(){
         val reader = createReader("12345678")
         reader.readText()
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
         reader.read().toChar() shouldBe '1'
     }
 
@@ -395,12 +396,12 @@ open abstract class BiReaderTest {
         reader.getCurrent().toChar() shouldBe '1'
         reader.readToNext('|').asText() shouldBe "234"
 
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
         reader.goBack()
         reader.read().toChar() shouldBe '1'
         reader.readToNext('|', inclusive = true).asText() shouldBe "234|"
 
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
         reader.readToNext('|', inclusive = true).asText() shouldBe "1234|"
         reader.readToNext('|').asText() shouldBe "56789"
     }
@@ -414,13 +415,13 @@ open abstract class BiReaderTest {
         reader.getCurrent().toChar() shouldBe '1'
         reader.readToNextIncludingCurrent('|').asText() shouldBe "1234"
 
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
         reader.read()
 
 
         reader.readToNextIncludingCurrent('|', inclusive = true).asText() shouldBe "1234|"
 
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
         reader.readToNextIncludingCurrent('|', inclusive = true).asText() shouldBe "1234|"
         reader.readToNextIncludingCurrent('|').asText() shouldBe "|56789"
     }
@@ -439,7 +440,7 @@ open abstract class BiReaderTest {
         reader.currentPositionFromFirstRead shouldBe 2
 
 
-        reader.goToFirstRead()
+        reader.goToFirstReadBuffered()
         reader.goBack()
         reader.currentPositionFromFirstRead shouldBe -1
         reader.read()
@@ -532,6 +533,24 @@ open abstract class BiReaderTest {
     }
 
     @Test
+    fun goToNextStr(){
+        val TEXT = "1234|56789|123"
+        val reader = createReader(TEXT)
+        reader.goToNext("567", inclusive = false) shouldBe true
+        reader.getFromFirstReadToCurrentAsText() shouldBe "1234|"
+        reader.readText() shouldBe "56789|123"
+    }
+
+    @Test
+    fun goToNextStrIncl(){
+        val TEXT = "1234|56789|123"
+        val reader = createReader(TEXT)
+        reader.goToNext("567", inclusive = true) shouldBe true
+        reader.getFromFirstReadToCurrentAsText() shouldBe "1234|567"
+        reader.readText() shouldBe "89|123"
+    }
+
+    @Test
     fun readToNextStringIncl(){
         val TEXT = "1234|56789|123"
         val reader = createReader(TEXT)
@@ -575,6 +594,36 @@ open abstract class BiReaderTest {
         val TEXT = "123456789|123"
         val reader = createReader(TEXT)
         reader.readToNext(text = "9|", readLimit = 3, inclusive = true) shouldBe "123"
+    }
+
+    @Test
+    fun readShouldWorksByBufferOverload(){
+        val TEXT = "1234560abcdefghigk"
+        val reader = createReader(TEXT, 5)
+
+        assertSoftly {
+            reader.readToNextIncludingCurrent('4', inclusive = true).asText() shouldBe "1234"
+            reader.currentPositionFromFirstRead shouldBe 3L
+            reader.readToNext('0', inclusive = true).asText() shouldBe "560"
+            reader.currentPositionFromFirstRead shouldBe 6L
+            reader.readToLineBreakTrimmed() shouldBe "abcdefghigk"
+            reader.currentPositionFromFirstRead shouldBe 17L
+        }
+    }
+
+    @Test
+    fun goBackCase(){
+        val TEXT = "1234560abcdefghigk"
+        val reader = createReader(TEXT)
+
+        assertSoftly {
+            reader.readToNextIncludingCurrent('4', inclusive = true).asText() shouldBe "1234"
+            reader.currentPositionFromFirstRead shouldBe 3L
+            reader.readToNext('0', inclusive = true).asText() shouldBe "560"
+            reader.currentPositionFromFirstRead shouldBe 6L
+            reader.readToLineBreakTrimmed() shouldBe "abcdefghigk"
+            reader.currentPositionFromFirstRead shouldBe 17L
+        }
     }
 
 

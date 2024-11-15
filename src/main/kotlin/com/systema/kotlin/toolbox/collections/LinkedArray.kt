@@ -15,6 +15,8 @@ class LinkedArray<E>(private val capability: Int) : Collection<E> {
     private var lastElementPointer = -1;
     private var readPointer = -1
     private var markPosition = -1;
+    var isEndReached = false
+    private set;
 
 
     val onFirstPosition : Boolean = readPointer == -1
@@ -89,6 +91,7 @@ class LinkedArray<E>(private val capability: Int) : Collection<E> {
             lastElementPointer = (lastElementPointer + 1) % capability
             firstElementPointer = (firstElementPointer + 1) % capability
             readPointer = (readPointer + 1) % capability
+            isEndReached = true
         }
         else{
             size++
@@ -144,7 +147,15 @@ class LinkedArray<E>(private val capability: Int) : Collection<E> {
         if(!hasPrev()){
             return false
         }
-        readPointer--;
+        if(readPointer == firstElementPointer){
+            readPointer = -1
+        }
+        else if(readPointer == 0) {
+            readPointer = size - 1
+        }
+        else{
+            readPointer--
+        }
         return true
     }
 

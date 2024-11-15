@@ -51,13 +51,6 @@ open class TextReaderWithMemory: ReaderWithMemory {
             return TextReaderWithMemory(BufferedReader(reader), bufferLen)
         }
 
-        private fun Array<Int>.asText() : String {
-            return this.toIntArray().asText()
-        }
-
-        private fun IntArray.asText() : String {
-            return String(this, 0, this.size)
-        }
 
         private fun CharArray.asText() : String {
             return String(this, 0, this.size)
@@ -74,7 +67,7 @@ open class TextReaderWithMemory: ReaderWithMemory {
         val readLen =  super.read(cbuf, off, len)
         if(readLen != -1 && buffer.currentPositionFromLastRead == 0 && readLen > bufferPosition) {
             val fromIndex = off + bufferPosition
-            val toIndex = fromIndex + readLen - 1
+            val toIndex = readLen - fromIndex +  - 1
             for (i in fromIndex.. toIndex) {
                 if (cbuf[i] == '\n') {
                     readLineCnt++

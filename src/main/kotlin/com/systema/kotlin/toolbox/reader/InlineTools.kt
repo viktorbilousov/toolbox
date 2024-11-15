@@ -111,6 +111,58 @@ fun BiReader.readToNext(text: String, inclusive: Boolean = true,  readLimit: Int
     return sb.dropLast(text.length).toString()
 }
 
+
+fun BiReader.goToNext(text: String, inclusive: Boolean = true, readLimit: Int  = 0): Boolean{
+    if(text.isEmpty()) return true
+    if(text.length == 1) {
+        return goToNext(text[0], readLimit =  readLimit, inclusive = inclusive)
+    }
+
+    val textArray = text.toCharArray();
+
+    var found = false
+
+    val readBefore = currentPositionFromFirstRead
+    var rest = readLimit
+    val buff = CharArray(text.length)
+
+    while (!found) {
+        val hasFirstChar = goToNext(text[0], inclusive = false, readLimit = rest)
+        if (!hasFirstChar) return false
+        val readAfter = currentPositionFromFirstRead
+
+        rest = (readAfter - readBefore).toInt()
+        if(rest <= 0) return false
+
+        for (char in textArray) {
+            val arr = read(buff);
+
+            if(arr == -1 || arr != text.length){
+                return false
+            }
+
+            rest -= arr;
+
+            if(buff.contentEquals(textArray)){
+                found = true
+                break
+            }
+            if(rest <= 0) return false
+        }
+
+        if(!found){
+            goBack(text.length-1)
+        }
+    }
+
+    if(!inclusive) {
+        goBack(text.length)
+    }
+
+    return true
+}
+
+
 fun BiReader.readTextNext(cnt: Int) : String{
     return readNext(cnt).asText()
 }
@@ -168,8 +220,8 @@ fun BiReader.readToLineBreak(trimEnd: Boolean = true): String {
 
 fun BiReader.goBackToLineBegin() {
     if(getPrev() == '\n'.code) return
-    if(!goBackTo('\n')){
-        goToFirstRead()
+    if(!goBackTo('\n', inclusive = true)){
+        goToFirstReadBuffered()
     }
 }
 

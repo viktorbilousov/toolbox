@@ -60,7 +60,7 @@ interface BiDirectionalReader {
     }
 
     fun getFirstReadAndMove(): Int {
-        if (!goToFirstRead()) return -1
+        if (!goToFirstReadBuffered()) return -1
         return getCurrent()
     }
 
@@ -71,7 +71,7 @@ interface BiDirectionalReader {
 
     fun getPrevAndMove(steps: Int): Int
 
-    fun goToFirstRead(): Boolean
+    fun goToFirstReadBuffered(): Boolean
     fun goToLastRead(): Boolean
 
 
