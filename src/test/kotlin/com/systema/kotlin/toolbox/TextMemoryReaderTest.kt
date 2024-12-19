@@ -40,7 +40,7 @@ class TextMemoryReaderTest: BiReaderTest(){
         val position = reader.markPosition()
         reader.currentPositionFromFirstRead shouldBe -1L
         reader.readToLineBreakTrimmed() shouldBe "1234|56789|123"
-        reader.currentPositionFromFirstRead shouldBe 13L
+        reader.currentPositionFromFirstRead shouldBe 14L
         
         reader.reset(position)
         reader.currentPositionFromFirstRead shouldBe -1

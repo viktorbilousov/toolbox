@@ -575,13 +575,31 @@ open abstract class BiReaderTest {
     }
 
     @Test
-    fun readToBackLine(){
+    fun readToBackLineCase1(){
         val TEXT = "1234|56789|123"
         val reader = createReader(TEXT)
         reader.readToNext("789|", inclusive = true) shouldBe "1234|56789|"
         reader.goBackToLineBegin()
         reader.readText() shouldBe "1234|56789|123"
     }
+
+    @Test
+    fun readToLineBreakTrimmed(){
+        val TEXT = "1234|56789|123\nabcd"
+        val reader = createReader(TEXT)
+        reader.readToLineBreakTrimmed() shouldBe "1234|56789|123"
+        reader.readToLineBreakTrimmed() shouldBe "abcd"
+    }
+
+    @Test
+    fun readToBackLineCase2(){
+        val TEXT = "someline\n1234|56789|123"
+        val reader = createReader(TEXT)
+        reader.readToNext("789|", inclusive = true) shouldBe "someline\n1234|56789|"
+        reader.goBackToLineBegin()
+        reader.readText() shouldBe "1234|56789|123"
+    }
+
 
     @Test
     fun readToNextWithLimit(){

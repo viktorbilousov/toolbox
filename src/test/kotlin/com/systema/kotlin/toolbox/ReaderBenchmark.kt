@@ -80,33 +80,27 @@ class ReaderBenchmark {
         }
     }
 
-
-
-    @Test
-    fun readFileByTextReaderWithMemory(){
-        for (i in 0 .. 10) {
-            val before = printMemory()
-            val r = TextReaderWithMemory(file.bufferedReader())
-            val stringWriter = StringWriter()
-            r.copyTo(stringWriter, file.length().toInt())
-            val file = stringWriter.toString()
-            val after = printMemory()
-            println("DIFF: " + (after - before).round(2))
-            System.gc()
-            println("File Len: " + (file.byteInputStream().readBytes().size.toDouble() / 1024 / 1014).round(2))
-            println(file.takeLast(100))
-            println()
-            Thread.sleep(500)
-        }
-
-    }
-
     @Test
     fun textReaderWithMemory(){
         for (i in 1 .. 30){
             val before = printMemory()
             val buff = CharArray(1024)
             val r = TextReaderWithMemory(file.bufferedReader())
+            while (r.read(buff) != -1) { }
+            r.close()
+            val after = printMemory()
+            println("DIFF: " + (before - after))
+            println()
+            Thread.sleep(500)
+        }
+    }
+
+    @Test
+    fun readerWithMemory(){
+        for (i in 1 .. 30){
+            val before = printMemory()
+            val buff = CharArray(1024)
+            val r = ReaderWithMemory(file.bufferedReader())
             while (r.read(buff) != -1) { }
             r.close()
             val after = printMemory()
@@ -131,10 +125,32 @@ class ReaderBenchmark {
         }
     }
 
+
+    @Test
+    fun readFileByTextReaderWithMemory(){
+        for (i in 0 .. 10) {
+            val before = printMemory()
+            val r = TextReaderWithMemory(file.bufferedReader())
+            val stringWriter = StringWriter()
+            r.copyTo(stringWriter, file.length().toInt())
+            val file = stringWriter.toString()
+            stringWriter.flush()
+            val after = printMemory()
+            println("DIFF: " + (after - before).round(2))
+            println("File Len: " + (file.byteInputStream().readBytes().size.toDouble() / 1024 / 1014).round(2) + " Mb")
+            println(file.takeLast(100).trim())
+            println("READ char:" + file.length)
+            println()
+            Thread.sleep(500)
+        }
+
+    }
+
+
     fun readFileByChannel(f: File, bufSize: Int): String {
         val channel: ReadableByteChannel =  FileInputStream(f).channel
         val buf = ByteBuffer.allocateDirect(bufSize)
-        val sb = StringBuilder()
+        val sb = StringWriter()
         var bytesRead = 0
         while (bytesRead >= 0) {
             bytesRead = channel.read(buf)
@@ -172,9 +188,12 @@ class ReaderBenchmark {
         println()
         for (i in 1 .. 30){
             val before = printMemory()
-            readFileByChannel(file, 10000)
+            val text = readFileByChannel(file, 10000)
             val after = printMemory()
             println("DIFF: " + (after - before))
+            println("File Len: " + (file.readBytes().size.toDouble() / 1024 / 1014).round(2) + " Mb")
+            println(text.takeLast(100).trim())
+            println("READ chars:" + text.length)
             println()
             Thread.sleep(1000)
         }

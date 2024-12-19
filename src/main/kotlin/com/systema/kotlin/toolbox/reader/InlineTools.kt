@@ -6,9 +6,10 @@ import java.io.Reader
 
 
 fun Reader.readChar(): Char? {
-    val code = this.read()
+    val arr = CharArray(1)
+    val code = this.read(arr)
     if(code == -1) return null
-    return code.toChar()
+    return arr[0]
 }
 
 fun BiReader.getCurrentChar() = this.getCurrent().toChar()
@@ -26,38 +27,6 @@ private fun Array<Int>.asText(): String {
     return sb.toString()
 }
 
-fun BiReader.goToNextAndMove(text: String): Boolean{
-    val chars = text.chars().toArray()
-    val intArray = mutableListOf<Int>()
-    for (i in chars.indices){
-        val char = read()
-        if(char == -1) return false
-        intArray.add(char)
-    }
-    var found = false
-    while (!found){
-        found = true
-
-        for ((index, i) in chars.withIndex()) {
-            if(intArray[index] != i) {
-                found = false
-                break
-            }
-        }
-
-        if(!found){
-            if(!hasNext()) return false
-            intArray.removeFirst()
-            intArray.add(read())
-        }
-    }
-
-    if(found) {
-        goBack(text.length)
-    }
-    return found
-}
-
 private val BiReader.isEndOfBuffer : Boolean get() = currentPositionFromLastRead == 0L
 
 
@@ -69,13 +38,13 @@ fun BiReader.readToNext(text: String, inclusive: Boolean = true,  readLimit: Int
     }
 
     val chars = text.chars().toArray()
-    val intArray = mutableListOf<Char>()
+    val charArray = mutableListOf<Char>()
     val sb = StringBuilder()
     var readCnt = 0
     for (i in chars.indices){
         if(isEndOfBuffer) readCnt++
         val char = readChar() ?: return ""
-        intArray.add(char)
+        charArray.add(char)
         sb.append(char)
         if(readLimit > 0 && readLimit == readCnt) return sb.toString()
     }
@@ -84,7 +53,7 @@ fun BiReader.readToNext(text: String, inclusive: Boolean = true,  readLimit: Int
         found = true
 
         for ((index, i) in chars.withIndex()) {
-            if(intArray[index] != i.toChar()) {
+            if(charArray[index] != i.toChar()) {
                 found = false
                 break
             }
@@ -92,12 +61,12 @@ fun BiReader.readToNext(text: String, inclusive: Boolean = true,  readLimit: Int
 
         if(!found){
             if(!hasNext()) return sb.toString()
-            intArray.removeFirst()
+            charArray.removeFirst()
             if(isEndOfBuffer) readCnt++
             val char = readChar() ?: return sb.toString()
             if(isEndOfBuffer) readCnt++
             sb.append(char)
-            intArray.add(char)
+            charArray.add(char)
             if(readLimit > 0 && readLimit == readCnt) return sb.toString()
         }
 
@@ -232,18 +201,24 @@ fun BiReader.goToLineBreak(startFromNewLine: Boolean = true) {
 }
 
 
-fun BiReader.readToLineBreakTrimmed() = readToNext( '\n').asText().trim()
+fun BiReader.readToLineBreakTrimmed() = readToNext( '\n', inclusive = true).asText().trim()
 
+private const val spaceChar = ' '
 private const val spaceCode = ' '.code
 private const val tabCode = '\t'.code
 
 fun BiReader.skipSpaces(): BiReader {
     val reader = this
-    var next : Int = spaceCode
-    while (next == spaceCode) {
-        next = reader.read()
+    var next : Char = spaceChar
+    val array = CharArray(1)
+    while (next == spaceChar) {
+        val res = reader.read(array)
+        if(res == -1) {
+            return reader
+        }
+        next = array[0]
     }
-    if(next != -1 || (reader.getPrev() != spaceCode && reader.getPrev() != tabCode)) {
+    if (reader.getPrev() != spaceCode && reader.getPrev() != tabCode) {
         reader.goBack()
     }
     return reader
