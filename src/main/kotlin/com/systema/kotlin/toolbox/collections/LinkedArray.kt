@@ -41,6 +41,7 @@ class LinkedArray<E>(private val capability: Int) : Collection<E> {
      *   lastRead   4  3  2  1  0
      */
     val currentPositionFromFirstRead: Int get() {
+        if(readPointer == -1) return -1;
         val diff = readPointer - firstElementPointer
         // diff < 0 when size == capability
         if(diff < 0) return diff + size
@@ -223,6 +224,10 @@ class LinkedArray<E>(private val capability: Int) : Collection<E> {
 
     fun hasPrev(): Boolean{
         return !isEmpty() && readPointer != -1
+    }
+
+    override fun toString(): String {
+        return "LinkedArray(array=${array.contentToString()}, capability=$capability, firstElementPointer=$firstElementPointer, lastElementPointer=$lastElementPointer, markPosition=$markPosition, readPointer=$readPointer, size=$size, isEndReached=$isEndReached, currentPositionFromFirstRead=$currentPositionFromFirstRead, currentPositionFromLastRead=$currentPositionFromLastRead, onFirstPosition=$onFirstPosition)"
     }
 
 

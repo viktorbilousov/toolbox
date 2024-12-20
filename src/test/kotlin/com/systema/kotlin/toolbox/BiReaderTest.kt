@@ -644,6 +644,91 @@ open abstract class BiReaderTest {
         }
     }
 
+    @Test
+    fun goBackCaseToTheBeginning(){
+        val TEXT = "1234560abcdefghigk\n12345"
+        val reader = createReader(TEXT)
+
+        assertSoftly {
+            val str = reader.readToLineBreakTrimmed()
+            str shouldBe "1234560abcdefghigk"
+            reader.goBack(str.length+1)
+            reader.currentPositionFromFirstRead shouldBe -1
+            reader.readToLineBreakTrimmed() shouldBe "1234560abcdefghigk"
+        }
+    }
+
+    @Test
+    fun goBackCaseToTheBeginningViaPointer(){
+        val TEXT = "1234560abcdefghigk\n12345"
+        val reader = createReader(TEXT)
+        val position = reader.markPosition()
+
+        assertSoftly {
+            val str = reader.readToLineBreakTrimmed()
+            str shouldBe "1234560abcdefghigk"
+            reader.reset(position)
+            reader.currentPositionFromFirstRead shouldBe -1
+            reader.getFromFirstReadToCurrentAsText() shouldBe ""
+        }
+    }
+
+    @Test
+    fun readToLineBrakeShouldReadNewLineButIgnoreItInResult(){
+        val TEXT = "line1\nline2\nline3"
+        val reader = createReader(TEXT)
+        val line1 = reader.readToLineBreak(jumpToNextLine = true)
+        val line2 = reader.readToLineBreak(jumpToNextLine = true)
+        val line3 = reader.readToLineBreak(jumpToNextLine = true)
+
+        line1 shouldBe "line1"
+        line2 shouldBe "line2"
+        line3 shouldBe "line3"
+    }
+
+    @Test
+    fun readToLineBrakeShouldReadNewLineIncludingnewLinetInResult(){
+        val TEXT = "line1\nline2\nline3"
+        val reader = createReader(TEXT)
+        val line1 = reader.readToLineBreak(jumpToNextLine = false)
+        reader.read()
+        val line2 = reader.readToLineBreak(jumpToNextLine = false)
+        reader.read()
+        val line3 = reader.readToLineBreak(jumpToNextLine = false)
+        reader.read()
+
+        line1 shouldBe "line1"
+        line2 shouldBe "line2"
+        line3 shouldBe "line3"
+    }
+
+    @Test
+    fun readToLineBrakeShouldReadNewLine(){
+        val TEXT = "line1\nline2\nline3"
+        val reader = createReader(TEXT)
+        val line1 = reader.readToLineBreak(jumpToNextLine = false)
+        val line2 = reader.readToLineBreak(jumpToNextLine = false)
+        val line3 = reader.readToLineBreak(jumpToNextLine = false)
+
+        line1 shouldBe "line1"
+        line2 shouldBe ""
+        line3 shouldBe ""
+    }
+
+    @Test
+    fun readToLineBrakeShouldJumbOverNewLine(){
+        val TEXT = "line1\nline2\nline3"
+        val reader = createReader(TEXT)
+        val line1 = reader.readToLineBreak(jumpToNextLine = false)
+        reader.readToLineBreak() // jump
+        val line2 = reader.readToLineBreak(jumpToNextLine = false)
+        reader.readToLineBreak() // jump
+        val line3 = reader.readToLineBreak(jumpToNextLine = false)
+
+        line1 shouldBe "line1"
+        line2 shouldBe "line2"
+        line3 shouldBe "line3"
+    }
 
 
 }

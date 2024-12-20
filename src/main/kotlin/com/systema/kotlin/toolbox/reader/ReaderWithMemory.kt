@@ -204,13 +204,13 @@ open class ReaderWithMemory: BiReader, BiDirectionalReader {
         return el
     }
 
-    override fun getNext() : Int {
-        if(!hasNext())  return -1
-        buffer.markPosition()
-        val v = getNextAndMove() ?: -1
-        buffer.moveToMarkedPosition()
-        return v
-    }
+//    override fun getNext() : Int {
+//        if(!hasNext())  return -1
+//        buffer.markPosition()
+//        val v = getNextAndMove() ?: -1
+//        buffer.moveToMarkedPosition()
+//        return v
+//    }
 
     fun getNextAndMove() : Int {
         if(!hasNext()) return -1

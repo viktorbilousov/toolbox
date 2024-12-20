@@ -87,7 +87,7 @@ fun BiReader.goToNext(text: String, inclusive: Boolean = true, readLimit: Int  =
         return goToNext(text[0], readLimit =  readLimit, inclusive = inclusive)
     }
 
-    val textArray = text.toCharArray();
+    val textArray = text.toCharArray()
 
     var found = false
 
@@ -104,13 +104,13 @@ fun BiReader.goToNext(text: String, inclusive: Boolean = true, readLimit: Int  =
         if(rest <= 0) return false
 
         for (char in textArray) {
-            val arr = read(buff);
+            val arr = read(buff)
 
             if(arr == -1 || arr != text.length){
                 return false
             }
 
-            rest -= arr;
+            rest -= arr
 
             if(buff.contentEquals(textArray)){
                 found = true
@@ -179,10 +179,26 @@ fun BiReader.goLeftFrom(vararg char: Char): Boolean {
     return false
 }
 
-fun BiReader.readToLineBreak(trimEnd: Boolean = true): String {
+/**
+ * @param trimEnd -> trim end of read line
+ * @param jumpToNextLine - if true -> move reader to beginn of next line, else stop before \n
+ */
+fun BiReader.readToLineBreak(trimEnd: Boolean = true, jumpToNextLine: Boolean = true): String {
     if(!hasNext()) return ""
-    if(getNext().toChar() == '\n') goNext()
+    if(getCurrentChar() == '\n') {
+        if(jumpToNextLine){
+            read() // read "\n" -> after new line
+        }
+        return ""
+    };
     val text = readToNextIncludingCurrent( '\n').asText()
+    if(getNextChar() == '\n' && jumpToNextLine){
+        goNext() //  read current -> "\n"
+        read() // read "\n" -> after new line
+    }
+    else{
+        goNext() //  read current -> "\n"
+    }
     if(trimEnd) return text.trimEnd()
     return text
 }
