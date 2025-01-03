@@ -12,16 +12,6 @@ repositories {
     mavenCentral()
     mavenLocal()
     gradlePluginPortal()
-
-    maven {
-        name = "nexus public"
-        url = uri(project.properties["nexus_repository_url"] as String)
-        isAllowInsecureProtocol = true
-        credentials {
-            username = project.properties["nexus_username"] as String?
-            password = project.properties["nexus_password"] as String?
-        }
-    }
 }
 
 dependencies {

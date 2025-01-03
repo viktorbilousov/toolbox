@@ -17,21 +17,24 @@ publishing {
         }
     }
 
-    repositories {
-        maven {
-            name = "SystemaNexus"
+    val isLocal = project.properties["is_local_lib"] as? String?  == "true"
+    if(!isLocal) {
+        repositories {
+            maven {
+                name = "SystemaNexus"
 
-            var publishUrl = project.properties["nexus_repository_release_url"] as String?
+                var publishUrl = project.properties["nexus_repository_release_url"] as? String?
 
-            if ((version as String).contains("SNAPSHOT")) {
-                publishUrl = project.properties["nexus_repository_snapshot_url"] as String?
-            }
+                if ((version as String).contains("SNAPSHOT")) {
+                    publishUrl = project.properties["nexus_repository_snapshot_url"] as? String?
+                }
 
-            url = uri(publishUrl!!)
+                url = uri(publishUrl!!)
 
-            credentials {
-                username = project.properties["nexus_username"] as String?
-                password = project.properties["nexus_password"] as String?
+                credentials {
+                    username = project.properties["nexus_username"] as? String?
+                    password = project.properties["nexus_password"] as? String?
+                }
             }
         }
     }
