@@ -286,16 +286,19 @@ private fun getFilesRec(folder: File, files: MutableList<File>){
 }
 
 fun getFiles(fileOrFolderPath: String): List<File>{
-    if(fileOrFolderPath.endsWith("\\**")){
-        val folder = fileOrFolderPath.replaceAfterLast("\\", "") + "\\"
+    val delimiter : String = if(fileOrFolderPath.contains("\\")) "\\"
+    else "/"
+
+    if(fileOrFolderPath.endsWith("$delimiter**")){
+        val folder = fileOrFolderPath.replaceAfterLast(delimiter, "") + delimiter
         val folderFile = File(folder).absoluteFile
         if(!folderFile.exists()) return listOf();
         val files = mutableListOf<File>()
         getFilesRec(folderFile, files)
         return files
     }
-    else if(fileOrFolderPath.endsWith("\\*")){
-        val folder = fileOrFolderPath.replaceAfterLast("\\", "") + "\\"
+    else if(fileOrFolderPath.endsWith("$delimiter*")){
+        val folder = fileOrFolderPath.replaceAfterLast(delimiter, "") + delimiter
         val folderFile = File(folder).absoluteFile
         if(!folderFile.exists()) return listOf();
         return folderFile.listFiles()!!.filter { it.isFile }

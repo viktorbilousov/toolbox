@@ -203,9 +203,16 @@ fun BiReader.readToLineBreak(trimEnd: Boolean = true, jumpToNextLine: Boolean = 
     return text
 }
 
-fun BiReader.goBackToLineBegin() {
-    if(getPrev() == '\n'.code) return
-    if(!goBackTo('\n', inclusive = true)){
+fun BiReader.goBackToLineBegin(inclusive: Boolean = true) {
+
+    if(getPrev() == '\n'.code) {
+        if(inclusive) goBack()
+        return
+    }
+    if(getCurrent() == '\n'.code && inclusive){
+        return
+    }
+    if(!goBackTo('\n', inclusive = inclusive)){
         goToFirstReadBuffered()
     }
 }
