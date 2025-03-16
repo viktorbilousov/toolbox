@@ -1,3 +1,5 @@
+package org.vib.toolbox
+
 import org.vib.toolbox.collections.LinkedArray
 import io.kotest.assertions.assertSoftly
 import io.kotest.matchers.collections.shouldContainExactly

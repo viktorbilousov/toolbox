@@ -1,4 +1,4 @@
-package com.systema.kotlin.toolbox
+package org.vib.toolbox
 
 import org.vib.toolbox.reader.readChar
 import io.kotest.assertions.assertSoftly

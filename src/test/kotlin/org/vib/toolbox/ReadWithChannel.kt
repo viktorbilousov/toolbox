@@ -1,4 +1,4 @@
-package com.systema.kotlin.toolbox
+package org.vib.toolbox
 
 import java.io.FileInputStream
 import java.io.FileNotFoundException

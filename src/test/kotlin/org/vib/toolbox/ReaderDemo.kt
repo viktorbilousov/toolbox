@@ -1,8 +1,8 @@
-import java.io.BufferedReader
+package org.vib.toolbox
+
 import java.io.IOException
 import java.io.Reader
 import java.io.StringReader
-import java.nio.file.Files
 
 object ReaderDemo {
     @JvmStatic
