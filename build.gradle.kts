@@ -1,12 +1,19 @@
 plugins {
     kotlin("jvm") version "1.8.21"
     `java-library`
+    `maven-publish`
 }
 
 group = "com.systema.kotlin"
 version = "1.2-SNAPSHOT"
 
-apply(plugin = "configure-nexus-publication")  // publish to the systema maven repository
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+        }
+    }
+}
 
 repositories {
     mavenCentral()
@@ -16,6 +23,7 @@ repositories {
 
 dependencies {
     implementation("org.slf4j:slf4j-api:2.0.13")
+
     testImplementation(kotlin("test"))
     testImplementation("io.kotest:kotest-assertions-core-jvm:5.8.0")
     testImplementation("io.kotest:kotest-property-jvm:5.8.0")
