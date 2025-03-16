@@ -247,3 +247,23 @@ fun BiReader.skipSpaces(): BiReader {
     return reader
 }
 
+/**
+ * Extracts substring between some delimiter -> " 'A' 'B' 'C'" -> list("A","B","C")
+ * @param delimeter
+ * @param limit max number of tokens
+ * @return list of substrings
+ */
+fun String.substringsBetweenUsingReader(delimeter: String, limit: Int): List<String>{
+    val tokens = mutableListOf<String>()
+    val reader = TextReaderWithMemory(this.trim());
+    while (reader.hasNext()){
+        reader.goToNext(delimeter, inclusive = true)
+        tokens.add(reader.readToNext(delimeter, inclusive = false))
+        reader.goNext()
+
+        if(tokens.size == limit) {
+            break
+        }
+    }
+    return tokens
+}
