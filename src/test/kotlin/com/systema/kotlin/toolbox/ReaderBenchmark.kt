@@ -1,11 +1,11 @@
 package com.systema.kotlin.toolbox
 
-import com.systema.kotlin.toolbox.reader.ReaderWithMemory
-import com.systema.kotlin.toolbox.reader.TextReaderWithMemory
+import org.vib.toolbox.reader.ReaderWithMemory
+import org.vib.toolbox.reader.TextReaderWithMemory
 import org.junit.jupiter.api.Disabled
+import org.vib.toolbox.round
 import java.io.File
 import java.io.FileInputStream
-import java.io.Reader
 import java.io.StringWriter
 import java.nio.ByteBuffer
 import java.nio.channels.Channels

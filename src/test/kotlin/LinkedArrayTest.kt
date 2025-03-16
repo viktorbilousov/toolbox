@@ -1,10 +1,8 @@
-import com.systema.kotlin.toolbox.collections.LinkedArray
-import com.systema.kotlin.toolbox.reader.ReaderWithMemory
+import org.vib.toolbox.collections.LinkedArray
 import io.kotest.assertions.assertSoftly
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
-import java.io.StringReader
 
 class LinkedArrayTest {
 

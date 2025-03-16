@@ -4,7 +4,7 @@ plugins {
     `maven-publish`
 }
 
-group = "com.systema.kotlin"
+group = "org.vib"
 version = "1.2-SNAPSHOT"
 
 publishing {

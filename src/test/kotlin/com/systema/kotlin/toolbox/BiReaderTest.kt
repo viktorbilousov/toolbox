@@ -1,11 +1,21 @@
 package com.systema.kotlin.toolbox
 
-import com.systema.kotlin.toolbox.reader.*
-import com.systema.kotlin.toolbox.reader.readChar
+import org.vib.toolbox.reader.readChar
 import io.kotest.assertions.assertSoftly
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
+import org.vib.toolbox.reader.BiReader
+import org.vib.toolbox.reader.TextReaderWithMemory
+import org.vib.toolbox.reader.getCurrentChar
+import org.vib.toolbox.reader.getFromCurrentPositionToLastReadAsText
+import org.vib.toolbox.reader.getFromFirstReadToCurrentAsText
+import org.vib.toolbox.reader.goBackToLineBegin
+import org.vib.toolbox.reader.goToLineBreak
+import org.vib.toolbox.reader.goToNext
+import org.vib.toolbox.reader.readToLineBreak
+import org.vib.toolbox.reader.readToLineBreakTrimmed
+import org.vib.toolbox.reader.readToNext
 
 open abstract class BiReaderTest {
 

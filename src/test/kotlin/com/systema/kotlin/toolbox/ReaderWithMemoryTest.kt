@@ -1,7 +1,7 @@
 package com.systema.kotlin.toolbox
 
-import com.systema.kotlin.toolbox.reader.BiReader
-import com.systema.kotlin.toolbox.reader.ReaderWithMemory
+import org.vib.toolbox.reader.BiReader
+import org.vib.toolbox.reader.ReaderWithMemory
 import io.kotest.assertions.assertSoftly
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test

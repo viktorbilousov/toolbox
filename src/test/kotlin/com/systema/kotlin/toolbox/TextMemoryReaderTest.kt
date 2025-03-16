@@ -1,9 +1,7 @@
 package com.systema.kotlin.toolbox
 
-import com.systema.kotlin.toolbox.reader.BiReader
-import com.systema.kotlin.toolbox.reader.ReaderWithMemory
-import com.systema.kotlin.toolbox.reader.TextReaderWithMemory
-import com.systema.kotlin.toolbox.reader.readToLineBreakTrimmed
+import org.vib.toolbox.reader.TextReaderWithMemory
+import org.vib.toolbox.reader.readToLineBreakTrimmed
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
 import java.io.StringReader
