@@ -3,6 +3,7 @@ package com.systema.kotlin.toolbox
 import com.systema.kotlin.toolbox.reader.*
 import com.systema.kotlin.toolbox.reader.readChar
 import io.kotest.assertions.assertSoftly
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
 
@@ -730,5 +731,24 @@ open abstract class BiReaderTest {
         line3 shouldBe "line3"
     }
 
+
+    @Test
+    fun shouldNotSkipFirstCharIfGoToNext(){
+        val str = "'S6F11_SC_E4050_E_4050_1 | S6F12_SC_E4050_E_4050_1_reply' 'A' 'B' 'C' 'D' 'E'"
+
+        val texts = mutableListOf<String>()
+        val reader = TextReaderWithMemory(str.trim());
+        while (reader.hasNext()){
+            reader.goToNext('\'', inclusive = true)
+            texts.add(reader.readToNext('\'', inclusive = false).asText())
+            reader.goNext()
+        }
+
+        texts shouldContainExactly listOf(
+            "S6F11_SC_E4050_E_4050_1 | S6F12_SC_E4050_E_4050_1_reply",
+            "A",
+            "B", "C", "D", "E"
+        )
+    }
 
 }
