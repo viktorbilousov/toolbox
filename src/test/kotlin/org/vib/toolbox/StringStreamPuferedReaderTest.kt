@@ -1,4 +1,4 @@
-package org.vib.toolbox//import com.systema.kotlin.toolbox.StringStreamReader2
+package org.vib.toolbox//import org.vib.toolbox.StringStreamReader2
 //import io.kotest.matchers.shouldBe
 //import org.junit.jupiter.api.Test
 //import java.io.BufferedInputStream
