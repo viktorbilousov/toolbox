@@ -93,6 +93,25 @@ open abstract class BiReaderTest {
 
 
     @Test
+    fun goToNextCase3(){
+        val TEXT = "2025/05/20 01:19:21.937  - PID: 15620       - LEVEL: 4 COM       - TA: RLNYNBP0.14749532               - bus                        - CSysRvBusReceiveMessage              - Received message on subject \"RF360.SG.NA.Prod.Equipment.Resource.Event.Report.F4VCO539\" from \"SVSGHEIBUSPRD05\$/eqs/9.2.18//172.29.149.211(SVSGHEIBUSPRD05)\": <?xml version='1.0' encoding='UTF-8'?><MESSAGE><CMD type=\"A\">EVENT_REPORT</CMD><MID type=\"A\">F4VCO539</MID><MTY type=\"A\">E</MTY><TID type=\"U4\">14730509</TID><ECD type=\"U4\">30013</ECD><ETX type=\"A\">An Event that was not expected was received from the machine.</ETX><CEID type=\"A\">6005</CEID><EVENT_ID type=\"A\">6005</EVENT_ID><DATAID type=\"U4\">153875709</DATAID><CEID type=\"U4\">6005</CEID><DATE_TIME type=\"A\">2025-05-20 01:19:21+08:00</DATE_TIME></MESSAGE>\n"
+        val reader = createReader(TEXT)
+        //encoding='UTF-8'?>
+        reader.goToNext("encoding='UTF-8'?>", inclusive = true)
+        reader.getFromFirstReadToCurrentAsText() shouldBe (TEXT.substringBefore("encoding='UTF-8'?>") + "encoding='UTF-8'?>")
+        reader.readToNext("</") shouldBe "<MESSAGE><CMD type=\"A\">EVENT_REPORT</"
+    }
+
+    @Test
+    fun goReadToNExt(){
+        val TEXT = "2025/05/20 01:19:21.937  - PID: 15620       - LEVEL: 4 COM       - TA: RLNYNBP0.14749532               - bus                        - CSysRvBusReceiveMessage              - Received message on subject \"RF360.SG.NA.Prod.Equipment.Resource.Event.Report.F4VCO539\" from \"SVSGHEIBUSPRD05\$/eqs/9.2.18//172.29.149.211(SVSGHEIBUSPRD05)\": <?xml version='1.0' encoding='UTF-8'?><MESSAGE><CMD type=\"A\">EVENT_REPORT</CMD><MID type=\"A\">F4VCO539</MID><MTY type=\"A\">E</MTY><TID type=\"U4\">14730509</TID><ECD type=\"U4\">30013</ECD><ETX type=\"A\">An Event that was not expected was received from the machine.</ETX><CEID type=\"A\">6005</CEID><EVENT_ID type=\"A\">6005</EVENT_ID><DATAID type=\"U4\">153875709</DATAID><CEID type=\"U4\">6005</CEID><DATE_TIME type=\"A\">2025-05-20 01:19:21+08:00</DATE_TIME></MESSAGE>\n"
+        val reader = createReader(TEXT)
+        //encoding='UTF-8'?>
+        reader.readToNext("encoding='UTF-8'?>", inclusive = true) shouldBe "2025/05/20 01:19:21.937  - PID: 15620       - LEVEL: 4 COM       - TA: RLNYNBP0.14749532               - bus                        - CSysRvBusReceiveMessage              - Received message on subject \"RF360.SG.NA.Prod.Equipment.Resource.Event.Report.F4VCO539\" from \"SVSGHEIBUSPRD05\$/eqs/9.2.18//172.29.149.211(SVSGHEIBUSPRD05)\": <?xml version='1.0' encoding='UTF-8'?>"
+    }
+
+
+    @Test
     fun goToNextCase2(){
         val TEXT = "1234\n56789\n123"
         val reader = createReader(TEXT)

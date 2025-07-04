@@ -1,5 +1,6 @@
 package org.vib.toolbox.reader
 
+import org.vib.toolbox.CharArrayComparator
 import org.vib.toolbox.asText
 import org.vib.toolbox.readChar
 import java.io.Reader
@@ -93,15 +94,17 @@ fun BiReader.goToNext(text: String, inclusive: Boolean = true, readLimit: Int  =
 
     val readBefore = currentPositionFromFirstRead
     var rest = readLimit
+    val checkLimit = readLimit > 0
     val buff = CharArray(text.length)
+    var compareFromIndex = 0;
 
     while (!found) {
         val hasFirstChar = goToNext(text[0], inclusive = false, readLimit = rest)
         if (!hasFirstChar) return false
         val readAfter = currentPositionFromFirstRead
 
-        rest = (readAfter - readBefore).toInt()
-        if(rest <= 0) return false
+        rest -= (readAfter - readBefore).toInt()
+        if(rest <= 0 && checkLimit) return false
 
         for (char in textArray) {
             val arr = read(buff)
@@ -112,11 +115,32 @@ fun BiReader.goToNext(text: String, inclusive: Boolean = true, readLimit: Int  =
 
             rest -= arr
 
-            if(buff.contentEquals(textArray)){
-                found = true
-                break
+            val compareResult = CharArrayComparator.containsPartOf(buff, textArray, compareFromIndex)
+            if(compareResult > 0){
+                if(compareResult + compareFromIndex == textArray.size){
+                    found = true
+                    goBack(compareFromIndex)
+                    break
+                }
+                else{
+                    compareFromIndex = compareResult
+                }
             }
-            if(rest <= 0) return false
+            else if(compareFromIndex != 0){
+                compareFromIndex = 0
+
+                val compareResult = CharArrayComparator.containsPartOf(buff, textArray, compareFromIndex)
+                if(compareResult == textArray.size){
+                    found = true
+                    break
+                }
+                else if(compareResult > 0){
+                    compareFromIndex = compareResult
+                }
+
+            }
+
+            if(rest <= 0 && checkLimit) return false
         }
 
         if(!found){
