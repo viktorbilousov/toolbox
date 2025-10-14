@@ -6,6 +6,7 @@ import java.io.IOException
 import java.io.Reader
 import kotlin.math.min
 
+@Deprecated("Replaced by DoubleBufferedReader")
 open class ReaderWithMemory: BiReader, BiDirectionalReader {
     protected val buffer : LinkedArray<Int>
     private val inReader: Reader

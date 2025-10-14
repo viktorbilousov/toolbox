@@ -4,6 +4,7 @@ import java.io.BufferedReader
 import java.io.Reader
 import java.io.StringReader
 
+@Deprecated("Replaced by DoubleBufferedReader")
 open class TextReaderWithMemory: ReaderWithMemory {
     constructor(reader: Reader, bufferLen: Int = defaultBufferSize) : super(reader, bufferLen)
 

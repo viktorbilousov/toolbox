@@ -5,7 +5,7 @@ import java.io.Reader
 import kotlin.math.abs
 import kotlin.math.min
 
-class DoubleBufferedReader(
+open class DoubleBufferedReader(
     private val input: Reader,
     private val bufferSize: Int = 8192*2
 ) : Reader(), HistoryBufferedReader {
