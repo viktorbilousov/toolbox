@@ -1,5 +1,6 @@
 package org.vib.toolbox
 
+import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -10,7 +11,8 @@ object ReadWithChannel {
     fun main(args: Array<String>) {
         try {
             val sb = StringBuilder()
-            FileInputStream("./src/test/resources/eqc-9632.log").channel.use { channel ->  //w ww  .j  a  v a 2  s  .  co m
+            val file = File("./src/benchmark/resources/eqc.log").canonicalFile
+            FileInputStream(file).channel.use { channel ->
                 val buf = ByteBuffer.allocateDirect(8)
 
                 var bytesRead = 0

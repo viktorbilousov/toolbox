@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "org.vib"
-version = "1.3-SNAPSHOT"
+version = "1.4-SNAPSHOT"
 
 publishing {
     publications {
@@ -13,6 +13,37 @@ publishing {
             from(components["java"])
         }
     }
+}
+
+sourceSets {
+    val benchmark by creating {
+        kotlin.srcDir("src/benchmark/kotlin")
+        resources.srcDir("src/benchmark/resources")
+    }
+}
+
+
+configurations {
+    named("benchmarkImplementation") {
+        extendsFrom(configurations["testImplementation"])
+    }
+    named("benchmarkRuntimeOnly") {
+        extendsFrom(configurations["testRuntimeOnly"])
+    }
+}
+
+tasks.register<Test>("benchmark") {
+    description = "Runs the benchmark tests."
+    group = "verification"
+
+    testClassesDirs = sourceSets["benchmark"].output.classesDirs
+    classpath = sourceSets["benchmark"].runtimeClasspath
+    useJUnitPlatform() // <- very important
+}
+
+
+tasks.withType<ProcessResources>().configureEach {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
 repositories {

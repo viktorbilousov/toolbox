@@ -1,5 +1,6 @@
 package org.vib.toolbox.reader
 
+@Deprecated("Replaced by HistoryBufferedReader")
 interface BiDirectionalReader {
 
 
