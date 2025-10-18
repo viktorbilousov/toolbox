@@ -359,11 +359,11 @@ inline fun <reified T> loggerWithId(id: String): Logger = LoggerFactory.getLogge
 
 //// ########################### StreamReader ###################################
 
-fun Reader.readChar(): Char? {
-    val code = this.read()
-    if(code == -1) return null
-    return code.toChar()
-}
+//fun Reader.readChar(): Char? {
+//    val code = this.read()
+//    if(code == -1) return null
+//    return code.toChar()
+//}
 
 //
 //fun ReaderWithMemory.goBackToLineBegin() :Boolean{

@@ -2,7 +2,6 @@ package org.vib.toolbox.reader
 
 import org.vib.toolbox.CharArrayComparator
 import org.vib.toolbox.asText
-import org.vib.toolbox.readChar
 import java.io.Reader
 
 

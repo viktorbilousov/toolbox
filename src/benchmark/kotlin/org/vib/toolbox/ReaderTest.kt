@@ -37,7 +37,7 @@ class ReaderTest {
         // 610 mills
 //        fileReader()
         bufferedReader()
-        textReaderWithMemory()
+//        textReaderWithMemory()
 //        readerWithMemory()
 //        bufferedReaderNew()
 //        doubleBufferedReader()
@@ -160,6 +160,9 @@ class ReaderTest {
         doubleBufferedReaderRc2GoForwardToChar4()
         doubleBufferedReaderRc2GoForwardToCharLimited()
         doubleBufferedReaderRc2ReadToChar()
+        doubleBufferedReaderRc2ReadToString()
+        doubleBufferedReaderRc2ReadToString2()
+        doubleBufferedReaderRc2ReadToString4()
     }
 
     @Test
@@ -315,6 +318,7 @@ class ReaderTest {
 
     }
 
+    @Test
     fun doubleBufferedReaderRc2ReadToChar(){
 
         for( i in 1 ..10) {
@@ -325,10 +329,73 @@ class ReaderTest {
             val time = measureTimedValue {
                 for (file in files) {
                     val reader =  DoubleBufferedReader(file.reader())
-                    while (reader.readTo('\n', matchPosition = HistoryBufferedReader.MatchPosition.AFTER) != null){}
+                    while (reader.readTo('\n', matchPosition = HistoryBufferedReader.MatchPosition.AFTER, nullIfNotFound = true) != null){}
                 }
             }
             printInfo("READ TO char DoubleBufferedReaderRC2 $i", time.duration, comparing = avg)
+
+        }
+        println()
+
+    }
+
+    @Test
+    fun doubleBufferedReaderRc2ReadToString2(){
+
+        for( i in 1 ..10) {
+            var text: String? = null
+
+            val time = measureTimedValue {
+                for (file in files) {
+                    val reader =  DoubleBufferedReader(file.reader())
+                    while (reader.hasNext()){
+                        reader.readTo(" - ", "- -", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)
+                    }
+                }
+            }
+            printInfo("READ TO String(2) DoubleBufferedReaderRC2 $i", time.duration, comparing = avg)
+
+        }
+        println()
+
+    }
+
+    @Test
+    fun doubleBufferedReaderRc2ReadToString(){
+
+        for( i in 1 ..10) {
+            var text: String? = null
+
+            val time = measureTimedValue {
+                for (file in files) {
+                    val reader =  DoubleBufferedReader(file.reader())
+                    while (reader.hasNext()){
+                        reader.readTo(" - ", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)
+                    }
+                }
+            }
+            printInfo("READ TO String(1) DoubleBufferedReaderRC2 $i", time.duration, comparing = avg)
+
+        }
+        println()
+
+    }
+
+    @Test
+    fun doubleBufferedReaderRc2ReadToString4(){
+
+        for( i in 1 ..10) {
+            var text: String? = null
+
+            val time = measureTimedValue {
+                for (file in files) {
+                    val reader =  DoubleBufferedReader(file.reader())
+                    while (reader.hasNext()){
+                        reader.readTo(" - ", "- -", "- -a", "- -b", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)
+                    }
+                }
+            }
+            printInfo("READ TO String(4) DoubleBufferedReaderRC2 $i", time.duration, comparing = avg)
 
         }
         println()
@@ -356,25 +423,25 @@ class ReaderTest {
 //    }
 
 
-    fun doubleBufferedReaderRc2GoForwardToStr1(){
-
-        for( i in 1 ..10) {
-            var foundCnt = 0
-            var cnt = 0
-            var text: String? = null
-
-            val time = measureTimedValue {
-                for (file in files) {
-                    val reader =  DoubleBufferedReader(file.reader())
-                    while (reader.goForwardTo1("\n", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)){}
-                }
-            }
-            printInfo("GO FORWARD TO STR (1) DoubleBufferedReaderRC2 $i", time.duration, comparing = avg)
-
-        }
-        println()
-
-    }
+//    private fun doubleBufferedReaderRc2GoForwardToStr1(){
+//
+//        for( i in 1 ..10) {
+//            var foundCnt = 0
+//            var cnt = 0
+//            var text: String? = null
+//
+//            val time = measureTimedValue {
+//                for (file in files) {
+//                    val reader =  DoubleBufferedReader(file.reader())
+//                    while (reader.goForwardTo1("\n", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)){}
+//                }
+//            }
+//            printInfo("GO FORWARD TO STR (1) DoubleBufferedReaderRC2 $i", time.duration, comparing = avg)
+//
+//        }
+//        println()
+//
+//    }
 
 
 

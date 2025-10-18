@@ -86,8 +86,9 @@ open class DoubleBufferedReader(
         var totalRead = 0
 
         while (totalRead < len) {
+            val absolutePosition = pos - historyRelativePosition
             // read from stream
-            if (pos >= limit) {
+            if (absolutePosition >= limit) {
                 if (!fillNextBuffer()) break
             }
             var currentPosition = pos - historyRelativePosition
@@ -121,7 +122,7 @@ open class DoubleBufferedReader(
     }
 
     override fun goBack(steps: Int): Boolean {
-        for (i in steps downTo 0) {
+        for (i in  0 until steps) {
             if(!goBack()) return false
         }
         return true
@@ -136,7 +137,7 @@ open class DoubleBufferedReader(
     }
 
     override fun goForward(steps: Int): Boolean {
-        for (i in steps downTo 0) {
+        for (i in 0 until steps) {
             if(!goForward()) return false
         }
         return true
@@ -224,7 +225,7 @@ open class DoubleBufferedReader(
             }
             else{
                 // go forward to first read character
-                historyRelativePosition++
+                historyRelativePosition--
                 return false;
             }
         }
@@ -244,6 +245,7 @@ open class DoubleBufferedReader(
             }
             return headBuffer[position]
         }catch (e: Exception){
+            hasCurrent()
             throw e
         }
 
@@ -254,7 +256,9 @@ open class DoubleBufferedReader(
     override fun hasCurrent() : Boolean{
         if(limit == 0)  return false
         // pos is pointer to "next to read", so current will be pos-1
-        if(pos - historyRelativePosition -1 < 0 && isHistoryBufferEmpty) return false
+        val absolutePosition = pos - historyRelativePosition
+        if(absolutePosition-1 < 0 && isHistoryBufferEmpty) return false
+        if(absolutePosition-1 + half < 0 ) return false
         return true
     }
 
@@ -443,7 +447,7 @@ open class DoubleBufferedReader(
         return false
     }
 
-    fun goForwardTo1(
+   private fun goForwardTo1(
         vararg targets: String,
         matchPosition: MatchPosition = MatchPosition.BEFORE,
         resetOnFail: Boolean = false,
@@ -544,80 +548,316 @@ open class DoubleBufferedReader(
     }
 
 
+    fun readIntoBuffer(
+        vararg targets: Char,
+        stringBuilder: StringBuilder,
+        matchPosition: MatchPosition,
+        resetOnFail: Boolean,
+        readLimit: Int
+    ): Boolean {
+
+        val arr = targets as CharArray
+        if(arr.isEmpty()) return false
+
+        val markedPosition = markPosition()
+
+        val sb = stringBuilder
+        var counter = 0
+        var found = false
+        var limitAchived = false
+
+
+        while (readLimit == 0 || counter < readLimit) {
+            limitAchived = false
+            var positionBeforeReading = pos - historyRelativePosition
+            if (positionBeforeReading == limit) {
+                limitAchived = true
+                positionBeforeReading = 0;
+            }
+
+            val safeLimit = calculateEndBufferReadLimit(HistoryBufferedReader.ReadLimit.END_OF_BUFFER) ?: break
+            val limit = if (readLimit == 0) safeLimit else min(readLimit, safeLimit)
+            val isEmptyBefore = isHistoryBufferEmpty
+            // go to the end of current buffer
+
+
+            val foundInCurrentBuffer = goForwardTo(
+                targets = targets,
+                matchPosition = matchPosition,
+                resetOnFail = false,
+                readLimit = limit
+            )
+
+
+
+            var positionAfterReading = pos - historyRelativePosition
+
+            if (!isHistoryBufferEmpty && isEmptyBefore) {
+                positionBeforeReading -= half
+            }
+
+
+            try {
+                if (positionBeforeReading < 0 && !isHistoryBufferEmpty) {
+                    val startPositionInHistory = positionBeforeReading + half
+                    sb.append(historyBuffer, startPositionInHistory, abs(positionBeforeReading))
+                    if(positionAfterReading >= 0) {
+                        sb.append(headBuffer, 0, positionAfterReading)
+                    }
+                } else {
+                    sb.append(headBuffer, positionBeforeReading, positionAfterReading - positionBeforeReading)
+                }
+            }catch (e: Exception){
+                throw e;
+            }
+
+            if(limitAchived && endReached){
+                found = foundInCurrentBuffer
+                break
+            }
+
+            if (foundInCurrentBuffer) {
+                found = true
+                break
+            } else {
+                // if not found -> read limit elements
+                counter += positionAfterReading - positionBeforeReading
+            }
+
+            if (endReached) {
+                break
+            }
+        }
+
+        if(resetOnFail){
+            resetPosition(markedPosition)
+        }
+
+        return found
+    }
+
 
 
     override fun readTo(
         vararg targets: Char,
         matchPosition: MatchPosition,
         resetOnFail: Boolean,
+        nullIfNotFound: Boolean,
         readLimit: Int
     ): String? {
-
         if(targets.isEmpty()) return null
-
-        val markedPosition = markPosition()
-
-        val expectedSize = half*2
-        val sb = StringBuilder(expectedSize)
-        var counter = 0;
-        var failed = true;
-        while (readLimit == 0 || counter < readLimit){
-            var positionBeforeReading = pos - historyRelativePosition
-            if(positionBeforeReading == limit){
-                positionBeforeReading = 0;
-            }
-
-            val safeLimit = calculateEndBufferReadLimit(HistoryBufferedReader.ReadLimit.END_OF_BUFFER) ?: break
-            val limit =  if(readLimit == 0) safeLimit else min(readLimit, safeLimit)
-            val isEmptyBefore = isHistoryBufferEmpty
-            // go to the end of current buffer
-            val foundInCurrentBuffer = goForwardTo(targets = targets,
-                matchPosition = matchPosition,
-                resetOnFail = false,
-                readLimit = limit
-                )
-
-
-            var positionAfterReading = pos - historyRelativePosition
-
-            if(!isHistoryBufferEmpty && isEmptyBefore){
-                positionBeforeReading -= half
-            }
-
-
-            if(positionBeforeReading < 0 && !isHistoryBufferEmpty){
-                val startPositionInHistory = positionBeforeReading + half
-                sb.append(historyBuffer, startPositionInHistory, abs(positionBeforeReading))
-                sb.append(headBuffer, 0, positionAfterReading)
-            }
-            else{
-                sb.append(headBuffer, positionBeforeReading, positionAfterReading - positionBeforeReading)
-            }
-
-            if(foundInCurrentBuffer){
-                failed = false
-                break
-            }
-            else{
-                // if not found -> read limit elements
-                counter += positionAfterReading - positionBeforeReading
-            }
-
-            if(endReached){
-                break
+        val sb =  StringBuilder(half*2)
+        val res = readIntoBuffer(targets = targets,
+          stringBuilder = sb,
+          matchPosition = matchPosition,
+          resetOnFail = resetOnFail,
+          readLimit = readLimit  )
+        if(!res){
+            if(nullIfNotFound){
+                sb.clear()
+                return null
             }
         }
+        return sb.toString()
 
-        if(failed){
-            if(resetOnFail){
-                resetPosition(markedPosition)
+    }
+
+
+
+     fun readTo1(
+        vararg targets: String,
+        matchPosition: MatchPosition,
+        resetOnFail: Boolean,
+        nullIfNotFound: Boolean,
+        readLimit: Int
+    ): String? {
+        if (targets.isEmpty()) return null
+
+        val nonEmptyTargets = targets.filter { it.isNotEmpty() }
+        if (nonEmptyTargets.isEmpty()) return null
+
+        // Быстрая ветка для одиночных символов
+        if (nonEmptyTargets.all { it.length == 1 }) {
+            val chars = CharArray(nonEmptyTargets.size) { nonEmptyTargets[it][0] }
+            return readTo(
+                targets = chars,
+                matchPosition = matchPosition,
+                resetOnFail = resetOnFail,
+                nullIfNotFound = nullIfNotFound,
+                readLimit = readLimit
+            )
+        }
+
+        val startMark = markPosition()
+        val sb = StringBuilder(half * 2)
+        val maxTargetLen = nonEmptyTargets.maxOf { it.length }
+
+        // Циклический буфер истории
+        val history = CharArray(maxTargetLen)
+        var historyStart = 0
+        var historySize = 0
+        var readCount = 0
+        var foundTarget: String? = null
+
+        // Map для ускоренной проверки: последний символ -> таргеты
+        val lastCharMap = nonEmptyTargets.groupBy { it.last() }
+
+        while (readLimit == 0 || readCount < readLimit) {
+            val chInt = read()
+            if (chInt == -1) break
+            val c = chInt.toChar()
+            sb.append(c)
+            readCount++
+
+            // Обновляем циклический буфер истории
+            if (historySize < maxTargetLen) {
+                history[historySize++] = c
+            } else {
+                history[historyStart] = c
+                historyStart = (historyStart + 1) % maxTargetLen
             }
-            sb.clear()
-            return null
+
+            // Проверяем только таргеты, чей последний символ == текущий символ
+            val candidates = lastCharMap[c] ?: continue
+            for (target in candidates) {
+                val len = target.length
+                if (historySize < len) continue
+
+                var matched = true
+                for (i in 0 until len) {
+                    val idx = (historyStart + historySize - len + i) % maxTargetLen
+                    if (history[idx] != target[i]) {
+                        matched = false
+                        break
+                    }
+                }
+
+                if (matched) {
+                    foundTarget = target
+                    break
+                }
+            }
+
+            if (foundTarget != null) break
+        }
+
+        if (foundTarget == null) {
+            if (resetOnFail) resetPosition(startMark)
+            return if (nullIfNotFound) null else sb.toString()
+        }
+
+        // BEFORE / AFTER обработка
+        when (matchPosition) {
+            MatchPosition.BEFORE -> {
+                goBack(foundTarget.length + 1) // +1 учитывает позицию после чтения
+                sb.setLength(sb.length - foundTarget.length)
+            }
+            MatchPosition.AFTER -> { /* уже включает таргет */ }
         }
 
         return sb.toString()
     }
+
+
+    override fun readTo(
+        vararg targets: String,
+        matchPosition: MatchPosition,
+        resetOnFail: Boolean,
+        nullIfNotFound: Boolean,
+        readLimit: Int
+    ): String? {
+        if (targets.isEmpty()) return null
+
+        val nonEmptyTargets = targets.filter { it.isNotEmpty() }
+        if (nonEmptyTargets.isEmpty()) return null
+
+        // Быстрая ветка для одиночных символов
+        if (nonEmptyTargets.all { it.length == 1 }) {
+            val chars = CharArray(nonEmptyTargets.size) { nonEmptyTargets[it][0] }
+            return readTo(
+                targets = chars,
+                matchPosition = matchPosition,
+                resetOnFail = resetOnFail,
+                nullIfNotFound = nullIfNotFound,
+                readLimit = readLimit
+            )
+        }
+
+        val startMark = markPosition()
+        val sb = StringBuilder(half * 2)
+        val maxTargetLen = nonEmptyTargets.maxOf { it.length }
+
+        // Циклический буфер истории
+        val history = CharArray(maxTargetLen)
+        var historyStart = 0
+        var historySize = 0
+        var readCount = 0
+        var foundTarget: String? = null
+
+        // Map для ускоренной проверки: последний символ -> таргеты
+        val lastCharMap = nonEmptyTargets.groupBy { it.last() }
+
+        while (readLimit == 0 || readCount < readLimit) {
+            val chInt = read()
+            if (chInt == -1) break
+            val c = chInt.toChar()
+            sb.append(c)
+            readCount++
+
+            // Циклический буфер истории
+            if (historySize < maxTargetLen) {
+                history[historySize++] = c
+            } else {
+                history[historyStart] = c
+                historyStart = (historyStart + 1) % maxTargetLen
+            }
+
+            // Проверяем только таргеты с последним символом == текущий символ
+            val candidates = lastCharMap[c] ?: continue
+            for (target in candidates) {
+                val len = target.length
+                if (historySize < len) continue
+
+                var matched = true
+                for (i in 0 until len) {
+                    val idx = (historyStart + historySize - len + i) % maxTargetLen
+                    if (history[idx] != target[i]) {
+                        matched = false
+                        break
+                    }
+                }
+
+                if (matched) {
+                    foundTarget = target
+                    break
+                }
+            }
+
+            if (foundTarget != null) break
+        }
+
+        if (foundTarget == null) {
+            if (resetOnFail) resetPosition(startMark)
+            return if (nullIfNotFound) null else sb.toString()
+        }
+
+        // BEFORE / AFTER обработка
+        when (matchPosition) {
+            MatchPosition.BEFORE -> {
+                // Откатываем позицию ровно до таргета
+                require(goBack(foundTarget.length)) {"Before is not supported: found word len > buffer len"}
+                sb.setLength(sb.length - foundTarget.length)
+            }
+            MatchPosition.AFTER -> { /* ничего не делаем, таргет уже включен */ }
+        }
+
+        return sb.toString()
+    }
+
+
+
+
+
 
 
 

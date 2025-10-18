@@ -1,13 +1,14 @@
 package org.vib.toolbox.reader.rc2
 
+import io.kotest.assertions.assertSoftly
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import org.vib.toolbox.readChar
 import org.vib.toolbox.reader.DoubleBufferedReader
 import org.vib.toolbox.reader.HistoryBufferedReader.MatchPosition
 import org.vib.toolbox.reader.HistoryBufferedReader.ReadLimit
+import org.vib.toolbox.reader.readChar
 import java.io.IOException
 import java.io.StringReader
 
@@ -34,6 +35,26 @@ class DoubleBufferedReaderRC2Test {
         val reader = DoubleBufferedReader(StringReader(text), bufferSize = 10)
         val result = reader.readText()
         assertEquals(text, result)
+    }
+
+    @Test
+    fun `read and read char work the same`() {
+        val text = "1234|abcd"
+        val reader1 = readerOf(text)
+        val reader2 = readerOf(text)
+
+        reader1.goForwardTo("|", matchPosition = MatchPosition.BEFORE)
+        reader2.goForwardTo("|", matchPosition = MatchPosition.BEFORE)
+
+
+        reader1.read().toChar() shouldBe '|'
+        reader2.readChar() shouldBe '|'
+
+        reader1.goBack()
+        reader2.goBack()
+
+        reader1.read().toChar() shouldBe '|'
+        reader2.readChar() shouldBe '|'
     }
 
     @Test
@@ -217,6 +238,16 @@ class DoubleBufferedReaderRC2Test {
         while (reader.readChar() != '|') {
         }
         assertEquals(reader.peekNext(), '5')
+    }
+
+    @Test
+    fun `should peek next equals to read`() {
+        val text = "9876|543210"
+        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 20)
+        while (reader.readChar() != '|') {
+        }
+        assertEquals(reader.peekNext(), '5')
+        assertEquals(reader.readChar(), '5')
     }
 
     @Test
@@ -888,7 +919,7 @@ class DoubleBufferedReaderRC2Test {
         val reader = readerOf("abcdef")
         val mark = reader.markPosition()
 
-        val result = reader.readTo('X', matchPosition = MatchPosition.BEFORE, resetOnFail = true, readLimit = 0)
+        val result = reader.readTo('X', matchPosition = MatchPosition.BEFORE, resetOnFail = true, nullIfNotFound = true, readLimit = 0)
 
         assertNull(result)
 
@@ -902,7 +933,7 @@ class DoubleBufferedReaderRC2Test {
         val reader = readerOf("abcdef")
         val mark = reader.markPosition()
 
-        val result = reader.readTo('X', matchPosition = MatchPosition.BEFORE, resetOnFail = false, readLimit = 0)
+        val result = reader.readTo('X', matchPosition = MatchPosition.BEFORE, resetOnFail = false, nullIfNotFound = true, readLimit = 0)
 
         assertNull(result)
         val after = reader.markPosition()
@@ -913,7 +944,7 @@ class DoubleBufferedReaderRC2Test {
     fun `readTo should respect readLimit and stop early`() {
         val reader = readerOf("abcdefX")
 
-        val result = reader.readTo('X', matchPosition = MatchPosition.BEFORE, resetOnFail = false, readLimit = 3)
+        val result = reader.readTo('X', matchPosition = MatchPosition.BEFORE, resetOnFail = false, nullIfNotFound = true, readLimit = 3)
 
         assertNull(result)
         val posAfter = reader.markPosition()
@@ -957,13 +988,12 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should return null for empty targets`() {
         val reader = readerOf("abcdef")
-
-        val result = reader.readTo(matchPosition = MatchPosition.BEFORE, resetOnFail = false, readLimit = 0)
+        val result = reader.readTo(targets = CharArray(0), matchPosition = MatchPosition.BEFORE, resetOnFail = false, readLimit = 0)
         assertNull(result)
     }
 
     @Test
-    fun `readTo test`() {
+    fun `readTo char test`() {
         val text = "1234567890"
         for ((index, ch) in text.withIndex()) {
             val reader = readerOf(text, 4)
@@ -974,7 +1004,7 @@ class DoubleBufferedReaderRC2Test {
     }
 
     @Test
-    fun `readTo from center test`() {
+    fun `readTo char from center test`() {
         val text = "aaaaaaaaa|1234567890"
         val textToSearch = "1234567890"
         for ((index, ch) in textToSearch.withIndex()) {
@@ -985,6 +1015,96 @@ class DoubleBufferedReaderRC2Test {
             t shouldBe textToSearch.take(index)
         }
     }
+
+    @Test
+    fun `readToStr from center test`() {
+        val text = "aaaaaaaaa|1234567890"
+        val textToSearch = "1234567890"
+        for ((index, ch) in textToSearch.withIndex()) {
+            if(index == textToSearch.lastIndex) break
+
+            val reader = readerOf(text, 4)
+            reader.goForwardTo('|', matchPosition = MatchPosition.AFTER)
+            val str = "${textToSearch[index]}" + textToSearch[index+1]
+            val t = reader.readTo(str, matchPosition = MatchPosition.BEFORE)
+            println(str + " : "+ `t`)
+            t shouldBe textToSearch.take(index)
+        }
+    }
+
+
+
+    @Test
+    fun `readTo multi line test`() {
+        val text = "123456789\nAabcdacbd\nA987654321"
+        val reader = readerOf(text)
+
+        val expectedResult1 = text.split("\nA")[0]
+        val expectedResult2 = text.split("\nA")[1]
+        val expectedResult3 = text.split("\nA")[2]
+
+        val result1 = reader.readTo("\nA", matchPosition = MatchPosition.BEFORE)
+        println("Result 1: '$result1'")
+        reader.goForward(2)
+
+        val result2 = reader.readTo("\nA", matchPosition = MatchPosition.BEFORE)
+        println("Result 2: '$result2'")
+        reader.goForward(2)
+
+        val result3 = reader.readTo("\nA", matchPosition = MatchPosition.BEFORE)
+        println("Result 3: '$result3'")
+        assertSoftly{
+            result1 shouldBe expectedResult1
+            result2 shouldBe expectedResult2
+            result3 shouldBe expectedResult3
+            }
+    }
+
+
+    @Test
+    fun `readToStr to new lines if line is longer that buffer size`() {
+        val text = "11111111\nA222222222\nA333333333"
+        val reader = readerOf(text)
+        val expected1 = text.split("\nA")[0]
+        val expected2 = text.split("\nA")[1]
+        val expected3 = text.split("\nA")[2]
+
+
+        reader.readTo("\nA") shouldBe expected1
+        reader.goForward(2)
+        reader.readTo("\nA") shouldBe expected2
+        reader.goForward(2)
+        reader.readTo("\nA") shouldBe expected3
+    }
+
+    @Test
+    fun `readToStr read to end`() {
+        val text = "12345678"
+        val reader = readerOf(text)
+        val expected1 = text.split("\n")[0]
+        reader.readTo("\n") shouldBe expected1
+    }
+
+
+    @Test
+    fun `readToStr to new lines if line is shorted then buffer size`() {
+        val text = "11111111\n222222222\n333333333"
+        val reader = readerOf(text)
+        val expected1 = text.split("\n")[0]
+        val expected2 = text.split("\n")[1]
+        val expected3 = text.split("\n")[2]
+
+
+        reader.readTo("\n") shouldBe expected1
+        reader.goForward()
+        reader.readTo("\n") shouldBe expected2
+        reader.goForward()
+        reader.readTo("\n") shouldBe expected3
+    }
+
+
+
+
 
     @Test
     fun `go forward to first`() {
@@ -1001,4 +1121,130 @@ class DoubleBufferedReaderRC2Test {
         reader.goForwardTo('2', matchPosition = MatchPosition.BEFORE).shouldBe(true)
         reader.readChar().shouldBe('2')
     }
+
+    @Test
+    fun `go forward to string between buffers`() {
+        val text = "aaaaaaaaa|1234567890"
+        val textToSearch = "1234567890"
+        for ((index, ch) in textToSearch.withIndex()) {
+            val reader = readerOf(text, 4)
+            reader.goForwardTo("|1")
+            while (reader.goBack()){}
+            val res = reader.goForwardTo("|1")
+            res shouldBe true
+        }
+    }
+
+    @Test
+    fun `readTo simple single char target BEFORE`() {
+        val text = "abcdefg"
+        val reader = readerOf(text, 4)
+        val result = reader.readTo("d", matchPosition = MatchPosition.BEFORE)
+        result shouldBe "abc"
+    }
+
+    @Test
+    fun `readTo simple single char target AFTER`() {
+        val text = "abcdefg"
+        val reader = readerOf(text, 4)
+        val result = reader.readTo("d", matchPosition = MatchPosition.AFTER)
+        result shouldBe "abcd"
+    }
+
+    @Test
+    fun `readTo string target BEFORE`() {
+        val text = "hello world"
+        val reader = readerOf(text, 4)
+        val result = reader.readTo("lo", matchPosition = MatchPosition.BEFORE)
+        result shouldBe "hel"
+    }
+
+    @Test
+    fun `readTo string target AFTER`() {
+        val text = "hello world"
+        val reader = readerOf(text, 4)
+        val result = reader.readTo("lo", matchPosition = MatchPosition.AFTER)
+        result shouldBe "hello"
+    }
+
+    @Test
+    fun `readTo multiple targets`() {
+        val text = "abcdefg"
+        val reader = readerOf(text, 4)
+        val result = reader.readTo("d", "f", matchPosition = MatchPosition.BEFORE)
+        result shouldBe "abc" // stops at first match 'd'
+    }
+
+    @Test
+    fun `readTo multiple string targets`() {
+        val text = "hello world"
+        val reader = readerOf(text, 4)
+        val result = reader.readTo("lo", "wor", matchPosition = MatchPosition.BEFORE)
+        result shouldBe "hel" // stops at first match "lo"
+    }
+
+    @Test
+    fun `readTo case1`() {
+        val text = "hehello world"
+        val reader = readerOf(text)
+        val result = reader.readTo("hello", matchPosition = MatchPosition.BEFORE)
+        result shouldBe "he" // stops at first match "lo"
+    }
+
+
+    @Test
+    fun `readTo target not found with resetOnFail`() {
+        val text = "abcdefg"
+        val reader = readerOf(text, 8)
+        val mark = reader.markPosition()
+        val result = reader.readTo("x", matchPosition = MatchPosition.BEFORE, resetOnFail = true, nullIfNotFound = true)
+        result shouldBe null
+        reader.markPosition() shouldBe mark // position restored
+    }
+
+    @Test
+    fun `readTo char target not found without reset`() {
+        val text = "abcdefg"
+        val reader = readerOf(text, 8)
+        val result = reader.readTo('x', matchPosition = MatchPosition.BEFORE, resetOnFail = false, nullIfNotFound = false)
+        result shouldBe "abcdefg" // returns all read chars
+    }
+
+    @Test
+    fun `readTo target not found without reset`() {
+        val text = "abcdefg"
+        val reader = readerOf(text, 8)
+        val result = reader.readTo("xx", matchPosition = MatchPosition.BEFORE, resetOnFail = false, nullIfNotFound = false)
+        result shouldBe "abcdefg" // returns all read chars
+    }
+
+    @Test
+    fun `readTo with readLimit stops early`() {
+        val text = "abcdefg"
+        val reader = readerOf(text, 4)
+        val result = reader.readTo("f", matchPosition = MatchPosition.BEFORE, readLimit = 3)
+        result shouldBe "abc" // reads only 3 characters
+    }
+
+    @Test
+    fun `readTo complex multi-line scenario`() {
+        val text = "1111\n2222\n3333\n4444"
+        val reader = readerOf(text)
+
+        assertSoftly {
+            // read up to "\n2222" BEFORE → returns first line
+            reader.readTo("\n2222", matchPosition = MatchPosition.BEFORE) shouldBe "1111"
+
+            // read up to "\n3333" AFTER → includes matched "\n2222"
+            reader.readTo("\n3333", matchPosition = MatchPosition.AFTER) shouldBe "\n2222\n3333"
+
+            // read up to "\n4444" BEFORE with limit → stops early
+            reader.readTo("\n4444", matchPosition = MatchPosition.BEFORE, readLimit = 2) shouldBe "\n4"
+        }
+    }
+
+
+
+
+
 }
