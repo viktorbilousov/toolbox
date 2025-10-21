@@ -4,6 +4,7 @@ import java.io.IOException
 import java.io.Reader
 import java.util.Arrays
 import kotlin.math.abs
+import kotlin.text.isNotEmpty
 
 open class DoubleBufferedReader(
     private val input: Reader,
@@ -814,6 +815,137 @@ open class DoubleBufferedReader(
     }
 
 
+
+
+    private fun readToBuffer(
+        vararg targets: Char,
+        stringBuffer: StringBuffer,
+        matchPosition: MatchPosition,
+        resetOnFail: Boolean,
+        readLimit: Int
+    ): Boolean {
+        if(targets.isEmpty()) return false
+
+        val positionBefore = markPosition()
+        var startedPosition: Int
+        var stringBufferSet: Boolean = false
+        var found : Boolean
+        var c: Char
+        var foundPosition: Int
+        var endedInHead = false
+        var limitReached = false
+        var prevRead = 0;
+        val bufferSizeBefore = stringBuffer.length
+        ensureOpen()
+        bufferLoop@ while (true) {
+            var aPos = pos - historyRelativePosition
+            if (aPos >= limit) {
+                fillNextBuffer()
+                aPos = pos - historyRelativePosition
+            }
+            if (aPos >= limit || limitReached) { /* EOF */
+
+                if(resetOnFail){
+                    resetPosition(positionBefore)
+                }
+                return false
+            }
+            found = false
+            c = Char(0)
+
+            val startedInHistory = aPos < 0
+            foundPosition = aPos
+            startedPosition = aPos
+            endedInHead = false
+            prevRead = stringBuffer.length - bufferSizeBefore
+            charLoop@ while (foundPosition < limit) {
+                if (foundPosition < 0)
+                {
+                    c = historyBuffer[foundPosition + half]
+                    endedInHead = false
+                }
+                else {
+                    c = headBuffer[foundPosition]
+                    endedInHead = true
+                }
+
+
+                if (compareChar(c, targets)) {
+                    found = true
+                    break@charLoop
+                }
+
+
+                foundPosition++
+
+                if(readLimit > 0 && prevRead + (foundPosition - aPos) >= readLimit){
+                    limitReached = true
+                    break@charLoop
+                }
+            }
+
+
+            if(found){
+                when (matchPosition) {
+                    MatchPosition.BEFORE -> {}
+                    MatchPosition.AFTER -> {
+                        foundPosition++
+                    }
+                }
+            }
+
+            if (foundPosition < pos) {
+                historyRelativePosition = pos + foundPosition - half
+            } else {
+                pos = foundPosition
+                historyRelativePosition = 0
+            }
+
+            if (found) {
+                if (!stringBufferSet) {
+                    stringBufferSet = true
+                    if (startedInHistory) {
+                        if (!endedInHead) {
+                            stringBuffer.append(historyBuffer, startedPosition + half, foundPosition - startedPosition)
+                        } else {
+                            stringBuffer.append(
+                                historyBuffer,
+                                startedPosition + half,
+                                historyBuffer.size - startedPosition
+                            )
+                            stringBuffer.append(headBuffer, 0, foundPosition)
+                        }
+                    } else {
+                        stringBuffer.append(headBuffer, startedPosition, foundPosition - startedPosition)
+                    }
+                } else {
+                    if (startedInHistory) {
+                        if (!endedInHead) {
+                            stringBuffer.append(historyBuffer, startedPosition + half, foundPosition - startedPosition)
+                        } else {
+                            stringBuffer.append(historyBuffer, startedPosition + half, abs(aPos))
+                            stringBuffer.append(headBuffer, 0, foundPosition)
+                        }
+                    } else {
+                        stringBuffer.append(headBuffer, startedPosition, foundPosition - startedPosition)
+                    }
+                }
+
+                return true
+            }
+
+            stringBufferSet = true
+            if (startedInHistory) {
+                stringBuffer.append(historyBuffer, startedPosition + half, abs(startedPosition))
+                stringBuffer.append(headBuffer)
+            } else {
+                stringBuffer.append(headBuffer, startedPosition,  foundPosition - startedPosition)
+            }
+        }
+
+    }
+
+
     override fun readTo(
         vararg targets: String,
         matchPosition: MatchPosition,
@@ -907,6 +1039,151 @@ open class DoubleBufferedReader(
 
         return sb.toString()
     }
+
+
+    fun readTo1(
+        vararg targets: String,
+        matchPosition: MatchPosition = MatchPosition.BEFORE,
+        resetOnFail: Boolean = false,
+        nullIfNotFound: Boolean = false,
+        readLimit: Int = 0
+    ): String? {
+        if(targets.isEmpty()) return null
+
+        val size = targets.size
+        val pattern = arrayOfNulls<StrPattern>(size)
+        for (i in 0 until size) {
+            pattern[i] = StrPattern(targets[i])
+        }
+        return readTo1(targets = (pattern as Array<StrPattern>), matchPosition, resetOnFail, nullIfNotFound, readLimit)
+    }
+
+    fun readTo1(
+        vararg targets: StrPattern,
+        matchPosition: MatchPosition = MatchPosition.BEFORE,
+        resetOnFail: Boolean = false,
+        nullIfNotFound: Boolean = false,
+        readLimit: Int = 0
+    ): String? {
+
+        if(targets.isEmpty()) {
+            return if(nullIfNotFound) null else ""
+        }
+
+        val startMark = markPosition()
+        val size = targets.size
+        val firstChars = CharArray(size)
+        for (i in 0 until size) {
+            firstChars[i] = targets[i].string[0]
+        }
+        var restReadLimit = readLimit
+
+        var read = -1
+        var ch = Char(0)
+
+        val pointers = IntArray(size)
+        val sizes = IntArray(size) { targets[it].string.length }
+        var finished = true
+        var found = BooleanArray(size)
+        var foundAny = false
+        var index = -1;
+        var foundIndex = -1;
+        var maxLen = 0;
+        val unlimited = readLimit == 0
+        val stringBuffer = StringBuffer(defaultCharBufferSize)
+
+        while (unlimited || restReadLimit > 0) {
+
+            val findFirst =
+                readToBuffer(targets = firstChars, stringBuffer = stringBuffer,
+                    matchPosition = MatchPosition.BEFORE,
+                    resetOnFail,
+                    restReadLimit)
+
+            if (!findFirst) {
+                return if(nullIfNotFound) null else stringBuffer.toString()
+            }
+
+            index = -1
+            finished = true
+            Arrays.fill(pointers, 0)
+
+            if(!unlimited) {
+                restReadLimit = readLimit - (markPosition() - startMark).toInt()
+            }
+            // execute KNC
+            while (unlimited || restReadLimit > 0) {
+
+                finished = true
+                read = read()
+                if (read == -1) {
+                    return if(nullIfNotFound) null else stringBuffer.toString()
+                }
+                index++
+                if(!unlimited) restReadLimit--
+
+                ch = read.toChar()
+                stringBuffer.append(ch)
+
+                for (i in 0 until size) {
+                    if (found[i]) continue
+                    while (true) {
+                        if (targets[i].string[pointers[i]] == ch) {
+                            pointers[i]++
+                            // found!
+                            if (pointers[i] == sizes[i]) {
+                                foundAny = true
+                                found[i] = true
+                                foundIndex = index
+                                if (pointers[i] > maxLen) {
+                                    maxLen = pointers[i]
+                                }
+                                break
+                            }
+                            finished = false
+                            break
+                        } else {
+                            if (pointers[i] <= 0) {
+                                break
+                            } else {
+                                finished = false
+                                pointers[i] = targets[i].lps[pointers[i] - 1]
+                                if (pointers[i] == 0) break
+                            }
+                        }
+                    }
+                }
+
+                if (finished) {
+                    break
+                }
+            }
+
+            if (foundAny) {
+
+                when (matchPosition) {
+                    MatchPosition.BEFORE -> {
+                        goBack(maxLen)
+                        return stringBuffer.substring(0, stringBuffer.length - maxLen)
+                    }
+                    MatchPosition.AFTER -> {
+                        return stringBuffer.toString()
+                    }
+                }
+
+            } else {
+                restReadLimit -= index
+            }
+
+        }
+
+        if (resetOnFail) {
+            resetPosition(startMark)
+        }
+        return if(nullIfNotFound) null else stringBuffer.toString()
+
+    }
+
 
 
 

@@ -6,6 +6,7 @@ import org.vib.toolbox.Utils.printInfo
 import org.vib.toolbox.reader.DoubleBufferedReader
 import org.vib.toolbox.reader.HistoryBufferedReader
 import org.vib.toolbox.reader.ReaderWithMemory
+import org.vib.toolbox.reader.StrPattern
 import org.vib.toolbox.reader.TextReaderWithMemory
 import java.io.InputStreamReader
 import java.io.Reader
@@ -21,7 +22,7 @@ class ReaderTest {
     companion object{
 
 
-        const val attempts = 5
+        const val attempts = 2
         val lines by lazy { files.first().bufferedReader().readLines().count() };
 
         @BeforeAll
@@ -215,7 +216,7 @@ class ReaderTest {
         doubleBufferedReaderRc2GoForwardToStr()
         doubleBufferedReaderRc2GoForwardToChar()
         doubleBufferedReaderRc2ReadToChar()
-//        doubleBufferedReaderRc2ReadToString()
+        doubleBufferedReaderRc2ReadToString()
 
     }
 
@@ -253,7 +254,7 @@ class ReaderTest {
                 var text: String? = null
                 for (file in files) {
                     val reader =  DoubleBufferedReader(file.reader())
-                    text =reader.readText()
+                    text = reader.readText()
                     while (reader.goBack()){}
                 }
             }
@@ -336,18 +337,36 @@ class ReaderTest {
 
     @Test
     fun doubleBufferedReaderRc2ReadToString(){
+
+        if(avg == 0.0){
+            bufferedReader()
+            bufferedReaderReadLine()
+        }
+
         var text = ""
+
+        val pattern = StrPattern(" >")
+        doubleBufferedReaderText("READ TO 1 String(1) DoubleBufferedReaderRC2"){
+            text = readTo1(" >", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)!!
+        }
+
+        doubleBufferedReaderText("READ TO 1 Pattern String(1) DoubleBufferedReaderRC2"){
+            text = readTo1(pattern, matchPosition = HistoryBufferedReader.MatchPosition.AFTER)!!
+        }
+
         doubleBufferedReaderText("READ TO String(1) DoubleBufferedReaderRC2"){
-            text = readTo(" - ", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)!!
+            text = readTo(" >", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)!!
         }
+//
+//        doubleBufferedReaderText("READ TO String(2) DoubleBufferedReaderRC2"){
+//            text = readTo(" >", ">.", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)!!
+//        }
+//
+//        doubleBufferedReaderText("READ TO String(5) DoubleBufferedReaderRC2"){
+//            text = readTo("\n ", " >", ">.", "> ", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)!!
+//        }
 
-        doubleBufferedReaderText("READ TO String(2) DoubleBufferedReaderRC2"){
-            text = readTo(" - ", "- -", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)!!
-        }
 
-        doubleBufferedReaderText("READ TO String(5) DoubleBufferedReaderRC2"){
-            text = readTo(" - ", "- -", "= =", "41", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)!!
-        }
 
 
     }
