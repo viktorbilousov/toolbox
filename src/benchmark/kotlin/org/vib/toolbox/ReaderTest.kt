@@ -212,7 +212,7 @@ class ReaderTest {
         doubleBufferedReaderRc2REad()
         doubleBufferedReaderRc2GoBack()
         doubleBufferedReaderRc2GoBackTo()
-//        doubleBufferedReaderRc2GoForwardToStr()
+        doubleBufferedReaderRc2GoForwardToStr()
         doubleBufferedReaderRc2GoForwardToChar()
         doubleBufferedReaderRc2ReadToChar()
 //        doubleBufferedReaderRc2ReadToString()
@@ -286,14 +286,20 @@ class ReaderTest {
 
     }
 
+    @Test
     fun doubleBufferedReaderRc2GoForwardToStr(){
 
         doubleBufferedReaderText("GO FORWARD TO string(2) DoubleBufferedReaderRC2"){
-            goForwardTo("\n ", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)
+            goForwardTo(" >", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)
         }
         doubleBufferedReaderText("GO FORWARD TO string(4) DoubleBufferedReaderRC2"){
-            goForwardTo("\n  ", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)
+            goForwardTo("   >", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)
         }
+
+        doubleBufferedReaderText("GO FORWARD TO string(2, 4) DoubleBufferedReaderRC2"){
+            goForwardTo(" \n", " >", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)
+        }
+
     }
 
 

@@ -5,6 +5,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
 import org.vib.toolbox.reader.DoubleBufferedReader
 import org.vib.toolbox.reader.HistoryBufferedReader.MatchPosition
 import org.vib.toolbox.reader.HistoryBufferedReader.ReadLimit
@@ -12,6 +13,7 @@ import org.vib.toolbox.reader.readChar
 import java.io.IOException
 import java.io.StringReader
 
+@Timeout(1)
 class DoubleBufferedReaderRC2Test {
 
     @Test
@@ -359,6 +361,7 @@ class DoubleBufferedReaderRC2Test {
         assertEquals('X', reader.read().toChar()) // first char
     }
 
+    @Timeout(1)
     @Test
     fun `should stop after target when matchPosition AFTER`() {
         val reader = readerOf("abcXYZdef")
@@ -420,7 +423,7 @@ class DoubleBufferedReaderRC2Test {
     fun `should support both overloads`() {
         val reader = readerOf("abcXYZdef")
 
-        val found = reader.goForwardTo("XYZ", readLimit = ReadLimit.UNLIMITED)
+        val found = reader.goForwardTo("XYZ", matchPosition = MatchPosition.BEFORE, readLimit = ReadLimit.UNLIMITED)
 
         assertTrue(found)
         assertEquals('X', reader.read().toChar())
@@ -707,7 +710,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should return false for empty target list`() {
         val reader = readerOf("abcdef")
-        val found = reader.goForwardTo(targets = emptyArray())
+        val found = reader.goForwardTo(targets = emptyArray<String>())
         assertFalse(found)
     }
 
@@ -1128,7 +1131,7 @@ class DoubleBufferedReaderRC2Test {
         val textToSearch = "1234567890"
         for ((index, ch) in textToSearch.withIndex()) {
             val reader = readerOf(text, 4)
-            reader.goForwardTo("|1")
+            reader.goForwardTo("|1") shouldBe true
             while (reader.goBack()){}
             val res = reader.goForwardTo("|1")
             res shouldBe true

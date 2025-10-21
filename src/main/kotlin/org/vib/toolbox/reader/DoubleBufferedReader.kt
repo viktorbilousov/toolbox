@@ -2,6 +2,7 @@ package org.vib.toolbox.reader
 import org.vib.toolbox.reader.HistoryBufferedReader.MatchPosition
 import java.io.IOException
 import java.io.Reader
+import java.util.Arrays
 import kotlin.math.abs
 
 open class DoubleBufferedReader(
@@ -379,138 +380,205 @@ open class DoubleBufferedReader(
         return goForwardTo(targets = targets, matchPosition, resetOnFail,  limit)
     }
 
+//    override fun goForwardTo(
+//        vararg targets: String,
+//        matchPosition: MatchPosition,
+//        resetOnFail: Boolean,
+//        readLimit: Int
+//    ): Boolean {
+//        val targets = targets.filter { it.isNotEmpty() }
+//        if (targets.isEmpty()) return false
+//        if(targets.all { it.length == 1 }){
+//            val arr = targets.map { it[0] }.toCharArray()
+//            return goForwardTo(targets = arr, matchPosition= matchPosition, resetOnFail = resetOnFail, readLimit = readLimit)
+//        }
+//
+//        val position = markPosition()
+//        val maxTargetLen = targets.maxOf { it.length }
+//
+//        val window = CharArray(maxTargetLen)
+//        var windowSize = 0
+//        var count = 0
+//
+//        while (readLimit == 0 || count++ < readLimit) {
+//            val ch = read()
+//            if(ch == -1) break;
+//
+//            // Add character to sliding window
+//            if (windowSize < maxTargetLen) {
+//                window[windowSize++] = ch.toChar()
+//            } else {
+//                // Shift left
+//                for (i in 0 until maxTargetLen - 1) window[i] = window[i + 1]
+//                window[maxTargetLen - 1] = ch.toChar()
+//            }
+//
+//            // Check for match
+//            for (target in targets) {
+//                if (windowSize >= target.length) {
+//                    var matched = true
+//                    for (i in target.indices) {
+//                        // Compare most recent chars
+//                        if (window[windowSize - target.length + i] != target[i]) {
+//                            matched = false
+//                            break
+//                        }
+//                    }
+//
+//                    if (matched) {
+//                        when (matchPosition) {
+//                            MatchPosition.BEFORE -> {
+//                                // Step back to just before match
+//                                repeat(target.length) { goBack() }
+//                            }
+//                            MatchPosition.AFTER -> {
+//                                // Already after match → do nothing
+//                            }
+//                        }
+//                        return true
+//                    }
+//                }
+//            }
+//        }
+//
+//        if (resetOnFail) {
+//           resetPosition(position)
+//        }
+//        return false
+//    }
+
+
     override fun goForwardTo(
         vararg targets: String,
         matchPosition: MatchPosition,
         resetOnFail: Boolean,
         readLimit: Int
     ): Boolean {
-        val targets = targets.filter { it.isNotEmpty() }
-        if (targets.isEmpty()) return false
-        if(targets.all { it.length == 1 }){
-            val arr = targets.map { it[0] }.toCharArray()
-            return goForwardTo(targets = arr, matchPosition= matchPosition, resetOnFail = resetOnFail, readLimit = readLimit)
+
+        if(targets.isEmpty()) return false
+
+        val size = targets.size
+        val pattern = arrayOfNulls<StrPattern>(size)
+        for (i in 0 until size) {
+            pattern[i] = StrPattern(targets[i])
         }
+        return goForwardTo(targets = (pattern as Array<StrPattern>), matchPosition, resetOnFail, readLimit)
 
-        val position = markPosition()
-        val maxTargetLen = targets.maxOf { it.length }
-
-        val window = CharArray(maxTargetLen)
-        var windowSize = 0
-        var count = 0
-
-        while (readLimit == 0 || count++ < readLimit) {
-            val ch = read()
-            if(ch == -1) break;
-
-            // Add character to sliding window
-            if (windowSize < maxTargetLen) {
-                window[windowSize++] = ch.toChar()
-            } else {
-                // Shift left
-                for (i in 0 until maxTargetLen - 1) window[i] = window[i + 1]
-                window[maxTargetLen - 1] = ch.toChar()
-            }
-
-            // Check for match
-            for (target in targets) {
-                if (windowSize >= target.length) {
-                    var matched = true
-                    for (i in target.indices) {
-                        // Compare most recent chars
-                        if (window[windowSize - target.length + i] != target[i]) {
-                            matched = false
-                            break
-                        }
-                    }
-
-                    if (matched) {
-                        when (matchPosition) {
-                            MatchPosition.BEFORE -> {
-                                // Step back to just before match
-                                repeat(target.length) { goBack() }
-                            }
-                            MatchPosition.AFTER -> {
-                                // Already after match → do nothing
-                            }
-                        }
-                        return true
-                    }
-                }
-            }
-        }
-
-        if (resetOnFail) {
-           resetPosition(position)
-        }
-        return false
     }
 
-   private fun goForwardTo1(
-        vararg targets: String,
+
+    fun goForwardTo(
+        vararg targets: StrPattern,
         matchPosition: MatchPosition = MatchPosition.BEFORE,
         resetOnFail: Boolean = false,
         readLimit: Int = 0
     ): Boolean {
 
+        if(targets.isEmpty()) return false
 
         val startMark = markPosition()
-        val maxTargetLen = targets.maxOf { it.length }
+        val size = targets.size
+        val firstChars = CharArray(size)
+        for (i in 0 until size) {
+            firstChars[i] = targets[i].string[0]
+        }
+        var restReadLimit = readLimit
 
-        // Use a circular buffer
-        val window = CharArray(maxTargetLen)
-        var windowSize = 0
-        var writeIndex = 0
-        var readCount = 0
+        var read = -1
+        var ch = Char(0)
 
-        // Precompute first character of each target for faster matching
-        val firstChars = targets.map { it.first() }
+        val pointers = IntArray(size)
+        val sizes = IntArray(size) { targets[it].string.length }
+        var finished = true
+        var found = BooleanArray(size)
+        var foundAny = false
+        var index = -1;
+        var foundIndex = -1;
+        var maxLen = 0;
+        val unlimited = readLimit == 0
 
-        while (readLimit == 0 || readCount++ < readLimit) {
-            val chInt = read()
-            if (chInt == -1) break
-            val ch = chInt.toChar()
+        while (unlimited || restReadLimit > 0) {
 
-            window[writeIndex] = ch
-            if (windowSize < maxTargetLen) windowSize++
-            writeIndex = (writeIndex + 1) % maxTargetLen
+            val findFirst =
+                goForwardTo(targets = firstChars, matchPosition = MatchPosition.BEFORE, resetOnFail, restReadLimit)
 
-            // Only bother checking if new char could start any target
-            if (ch !in firstChars) continue
+            if (!findFirst) {
+                return false
+            }
 
-            // Check each target efficiently in circular buffer
-            for (target in targets) {
-                val tLen = target.length
-                if (windowSize < tLen) continue
+            index = -1
+            finished = true
+            Arrays.fill(pointers, 0)
 
-                var matched = true
-                for (i in 0 until tLen) {
-                    val bufIndex = (writeIndex - tLen + i + maxTargetLen) % maxTargetLen
-                    if (window[bufIndex] != target[i]) {
-                        matched = false
-                        break
+            if(!unlimited) {
+                restReadLimit = readLimit - (markPosition() - startMark).toInt()
+            }
+            // execute KNC
+            while (unlimited || restReadLimit > 0) {
+
+                finished = true
+                read = read()
+                if (read == -1) {
+                    return false // EOF
+                }
+                index++
+                if(!unlimited) restReadLimit--
+
+                ch = read.toChar()
+
+                for (i in 0 until size) {
+                    if (found[i]) continue
+                    while (true) {
+                        if (targets[i].string[pointers[i]] == ch) {
+                            pointers[i]++
+                            // found!
+                            if (pointers[i] == sizes[i]) {
+                                foundAny = true
+                                found[i] = true
+                                foundIndex = index
+                                if (pointers[i] > maxLen) {
+                                    maxLen = pointers[i]
+                                }
+                                break
+                            }
+                            finished = false
+                            break
+                        } else {
+                            if (pointers[i] <= 0) {
+                                break
+                            } else {
+                                finished = false
+                                pointers[i] = targets[i].lps[pointers[i] - 1]
+                                if (pointers[i] == 0) break
+                            }
+                        }
                     }
                 }
 
-                if (matched) {
-                    when (matchPosition) {
-                        MatchPosition.BEFORE -> {
-                            // Move back before the target
-                            repeat(tLen) { goBack() }
-                        }
-                        MatchPosition.AFTER -> {
-                            // already after → do nothing
-                        }
-                    }
-                    return true
+                if (finished) {
+                    break
                 }
             }
+
+            if (foundAny) {
+
+                when (matchPosition) {
+                    MatchPosition.BEFORE -> goBack(maxLen)
+                    MatchPosition.AFTER -> {}
+                }
+
+                return true
+            } else {
+                restReadLimit -= index
+            }
+
         }
 
         if (resetOnFail) {
             resetPosition(startMark)
         }
         return false
+
     }
 
 
@@ -589,7 +657,7 @@ open class DoubleBufferedReader(
             }
 
             if (foundPosition < pos) {
-                historyRelativePosition = pos + foundPosition - half
+                historyRelativePosition = pos - foundPosition
             } else {
                 pos = foundPosition
                 historyRelativePosition = 0
