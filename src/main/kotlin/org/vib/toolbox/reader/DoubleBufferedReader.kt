@@ -638,6 +638,7 @@ open class DoubleBufferedReader(
 
 
 
+
     override fun readTo(
         vararg targets: Char,
         matchPosition: MatchPosition,
@@ -646,116 +647,137 @@ open class DoubleBufferedReader(
         readLimit: Int
     ): String? {
         if(targets.isEmpty()) return null
-        val sb =  StringBuilder(half*2)
-        val res = readIntoBuffer(targets = targets,
-          stringBuilder = sb,
-          matchPosition = matchPosition,
-          resetOnFail = resetOnFail,
-          readLimit = readLimit  )
-        if(!res){
-            if(nullIfNotFound){
-                sb.clear()
-                return null
+
+        val positionBefore = markPosition()
+        var startedPosition: Int
+        var stringBuffer: StringBuffer? = null
+        var found : Boolean
+        var c: Char
+        var foundPosition: Int
+        var endedInHead = false
+        var limitReached = false
+        var prevRead = 0;
+        ensureOpen()
+        bufferLoop@ while (true) {
+            var aPos = pos - historyRelativePosition
+            if (aPos >= limit) {
+                fillNextBuffer()
+                aPos = pos - historyRelativePosition
             }
-        }
-        return sb.toString()
+            if (aPos >= limit || limitReached) { /* EOF */
 
-    }
+                if(resetOnFail){
+                    resetPosition(positionBefore)
+                }
+
+                if (!nullIfNotFound)
+                {
+                    return stringBuffer?.toString() ?: ""
+                }
+                else
+                {
+                    return null
+                }
+            }
+            found = false
+            c = Char(0)
+
+            val startedInHistory = aPos < 0
+            foundPosition = aPos
+            startedPosition = aPos
+            endedInHead = false
+            prevRead = stringBuffer?.length ?: 0
+            charLoop@ while (foundPosition < limit) {
+                if (foundPosition < 0)
+                {
+                    c = historyBuffer[foundPosition + half]
+                    endedInHead = false
+                }
+                else {
+                    c = headBuffer[foundPosition]
+                    endedInHead = true
+                }
 
 
+                if (compareChar(c, targets)) {
+                    found = true
+                    break@charLoop
+                }
 
-     fun readTo1(
-        vararg targets: String,
-        matchPosition: MatchPosition,
-        resetOnFail: Boolean,
-        nullIfNotFound: Boolean,
-        readLimit: Int
-    ): String? {
-        if (targets.isEmpty()) return null
 
-        val nonEmptyTargets = targets.filter { it.isNotEmpty() }
-        if (nonEmptyTargets.isEmpty()) return null
+                foundPosition++
 
-        // Быстрая ветка для одиночных символов
-        if (nonEmptyTargets.all { it.length == 1 }) {
-            val chars = CharArray(nonEmptyTargets.size) { nonEmptyTargets[it][0] }
-            return readTo(
-                targets = chars,
-                matchPosition = matchPosition,
-                resetOnFail = resetOnFail,
-                nullIfNotFound = nullIfNotFound,
-                readLimit = readLimit
-            )
-        }
-
-        val startMark = markPosition()
-        val sb = StringBuilder(half * 2)
-        val maxTargetLen = nonEmptyTargets.maxOf { it.length }
-
-        // Циклический буфер истории
-        val history = CharArray(maxTargetLen)
-        var historyStart = 0
-        var historySize = 0
-        var readCount = 0
-        var foundTarget: String? = null
-
-        // Map для ускоренной проверки: последний символ -> таргеты
-        val lastCharMap = nonEmptyTargets.groupBy { it.last() }
-
-        while (readLimit == 0 || readCount < readLimit) {
-            val chInt = read()
-            if (chInt == -1) break
-            val c = chInt.toChar()
-            sb.append(c)
-            readCount++
-
-            // Обновляем циклический буфер истории
-            if (historySize < maxTargetLen) {
-                history[historySize++] = c
-            } else {
-                history[historyStart] = c
-                historyStart = (historyStart + 1) % maxTargetLen
+                if(readLimit > 0 && prevRead + (foundPosition - aPos) >= readLimit){
+                    limitReached = true
+                    break@charLoop
+                }
             }
 
-            // Проверяем только таргеты, чей последний символ == текущий символ
-            val candidates = lastCharMap[c] ?: continue
-            for (target in candidates) {
-                val len = target.length
-                if (historySize < len) continue
 
-                var matched = true
-                for (i in 0 until len) {
-                    val idx = (historyStart + historySize - len + i) % maxTargetLen
-                    if (history[idx] != target[i]) {
-                        matched = false
-                        break
+            if(found){
+                when (matchPosition) {
+                    MatchPosition.BEFORE -> {}
+                    MatchPosition.AFTER -> {
+                        foundPosition++
                     }
                 }
+            }
 
-                if (matched) {
-                    foundTarget = target
-                    break
+            if (foundPosition < pos) {
+                historyRelativePosition = pos + foundPosition - half
+            } else {
+                pos = foundPosition
+                historyRelativePosition = 0
+            }
+
+            if (found) {
+
+                val str: String
+                if (stringBuffer == null) {
+                    if (startedInHistory) {
+                        if (!endedInHead) {
+                            str = String(historyBuffer, startedPosition + half, foundPosition - startedPosition)
+                        } else {
+                            stringBuffer = StringBuffer(defaultExpectedLineLength)
+                            stringBuffer.append(
+                                historyBuffer,
+                                startedPosition + half,
+                                historyBuffer.size - startedPosition
+                            )
+                            stringBuffer.append(headBuffer, 0, foundPosition)
+                            str = stringBuffer.toString()
+                        }
+                    } else {
+                        str = String(headBuffer, startedPosition, foundPosition - startedPosition)
+                    }
+                } else {
+                    if (startedInHistory) {
+                        if (!endedInHead) {
+                            stringBuffer.append(historyBuffer, startedPosition + half, foundPosition - startedPosition)
+                        } else {
+                            stringBuffer.append(historyBuffer, startedPosition + half, abs(aPos))
+                            stringBuffer.append(headBuffer, 0, foundPosition)
+                        }
+                    } else {
+                        stringBuffer.append(headBuffer, startedPosition, foundPosition - startedPosition)
+                    }
+                    str = stringBuffer.toString()
                 }
+
+                return str
             }
 
-            if (foundTarget != null) break
-        }
-
-        if (foundTarget == null) {
-            if (resetOnFail) resetPosition(startMark)
-            return if (nullIfNotFound) null else sb.toString()
-        }
-
-        // BEFORE / AFTER обработка
-        when (matchPosition) {
-            MatchPosition.BEFORE -> {
-                goBack(foundTarget.length + 1) // +1 учитывает позицию после чтения
-                sb.setLength(sb.length - foundTarget.length)
+            if (stringBuffer == null) {
+                stringBuffer = StringBuffer(defaultExpectedLineLength)
             }
-            MatchPosition.AFTER -> { /* уже включает таргет */ }
+            if (startedInHistory) {
+                stringBuffer.append(historyBuffer, startedPosition + half, abs(startedPosition))
+                stringBuffer.append(headBuffer)
+            } else {
+                stringBuffer.append(headBuffer, startedPosition,  foundPosition - startedPosition)
+            }
         }
 
-        return sb.toString()
     }
 
 
@@ -771,7 +793,6 @@ open class DoubleBufferedReader(
         val nonEmptyTargets = targets.filter { it.isNotEmpty() }
         if (nonEmptyTargets.isEmpty()) return null
 
-        // Быстрая ветка для одиночных символов
         if (nonEmptyTargets.all { it.length == 1 }) {
             val chars = CharArray(nonEmptyTargets.size) { nonEmptyTargets[it][0] }
             return readTo(
@@ -979,5 +1000,185 @@ open class DoubleBufferedReader(
 
     override fun close() {
         input.close()
+    }
+
+    @Throws(IOException::class)
+    private fun ensureOpen() {
+        // TODO
+    }
+
+    companion object{
+        val defaultCharBufferSize = 8192
+        val defaultExpectedLineLength = 80
+
+        /**
+         * For iteration in kotlin is slow
+         */
+        @JvmStatic
+        private fun compareChar(c: Char, a: CharArray): Boolean {
+            val size = a.size
+
+            if(size >= 1) {
+                if(c == a[0]) return true
+                if(size == 1) return false
+            }
+            if(size >= 2) {
+                if(c == a[1]) return true
+                if(size == 2) return false
+            }
+            if(size >= 3) {
+                if(c == a[2]) return true
+                if(size == 3) return false
+            }
+            if(size >= 4) {
+                if(c == a[3]) return true
+                if(size == 4) return false
+            }
+            if(size >= 5) {
+                if(c == a[4]) return true
+                if(size == 5) return false
+            }
+            if(size >= 6) {
+                if(c == a[5]) return true
+                if(size == 6) return false
+            }
+            if(size >= 7) {
+                if(c == a[6]) return true
+                if(size == 7) return false
+            }
+            if(size >= 8) {
+                if(c == a[7]) return true
+                if(size == 8) return false
+            }
+            if(size >= 9) {
+                if(c == a[8]) return true
+                if(size == 9) return false
+            }
+            if(size >= 10) {
+                if(c == a[9]) return true
+                if(size == 10) return false
+            }
+//
+            if(size > 10) {
+                for (i in 10 until a.size) {
+                    if (c == a[i]) return true
+                }
+            }
+//
+//        if(size == 0)  return false
+
+            return false
+        }
+    }
+
+
+    /**
+     * Reads a line of text.  A line is considered to be terminated by any one
+     * of a line feed ('\n'), a carriage return ('\r'), a carriage return
+     * followed immediately by a line feed, or by reaching the end-of-file
+     * (EOF).
+     *
+     * @param      ignoreLF  If true, the next '\n' will be skipped
+     *
+     * @return     A String containing the contents of the line, not including
+     * any line-termination characters, or null if the end of the
+     * stream has been reached without reading any characters
+     *
+     * @see java.io.LineNumberReader.readLine
+     * @exception  IOException  If an I/O error occurs
+     */
+    @Throws(IOException::class)
+    fun readLine(target: Char): String? {
+
+        var startedPosition: Int
+        var stringBuffer: StringBuffer? = null
+        var found : Boolean
+        var c: Char
+        var foundPosition: Int
+        var endedInHead = false
+        ensureOpen()
+        bufferLoop@ while (true) {
+            val aPos = pos - historyRelativePosition
+            if (aPos >= limit) fillNextBuffer()
+            if (aPos >= limit) { /* EOF */
+                if (stringBuffer != null && stringBuffer.length > 0) {
+                    return stringBuffer.toString()
+                } else {
+                    return null
+                }
+            }
+            found = false
+            c = Char(0)
+
+            val startedInHistory = aPos < 0
+            foundPosition = aPos
+            endedInHead = false
+            charLoop@ while (foundPosition < limit) {
+                if (foundPosition < 0) {
+                    c = historyBuffer[foundPosition + half]
+                } else {
+                    c = headBuffer[foundPosition]
+                    endedInHead = true
+                }
+
+                if (c == target) {
+                    found = true
+                    break@charLoop
+                }
+                foundPosition++
+            }
+            startedPosition = aPos
+            if (foundPosition < pos) {
+                historyRelativePosition = pos + foundPosition - half
+            } else {
+                pos = foundPosition
+                historyRelativePosition = 0
+            }
+
+            if (found) {
+                val str: String
+                if (stringBuffer == null) {
+                    if (startedInHistory) {
+                        if (!endedInHead) {
+                            str = String(historyBuffer, startedPosition + half, foundPosition - startedPosition)
+                        } else {
+                            stringBuffer = StringBuffer(defaultExpectedLineLength)
+                            stringBuffer.append(
+                                historyBuffer,
+                                startedPosition + half,
+                                historyBuffer.size - startedPosition
+                            )
+                            stringBuffer.append(headBuffer, 0, foundPosition)
+                            str = stringBuffer.toString()
+                        }
+                    } else {
+                        str = String(headBuffer, startedPosition, foundPosition - startedPosition)
+                    }
+                } else {
+                    if (startedInHistory) {
+                        if (!endedInHead) {
+                            stringBuffer.append(historyBuffer, startedPosition + half, foundPosition - startedPosition)
+                        } else {
+                            stringBuffer.append(historyBuffer, startedPosition + half, abs(aPos))
+                            stringBuffer.append(headBuffer, 0, foundPosition)
+                        }
+                    } else {
+                        stringBuffer.append(headBuffer, startedPosition, foundPosition - startedPosition)
+                    }
+                    str = stringBuffer.toString()
+                }
+
+                goForward()
+                return str
+            }
+
+            if (stringBuffer == null) stringBuffer = StringBuffer(defaultExpectedLineLength)
+            if (startedPosition < 0) {
+                stringBuffer.append(historyBuffer, startedPosition + half, abs(startedPosition))
+                stringBuffer.append(headBuffer)
+            } else {
+                stringBuffer.append(headBuffer, startedPosition, half - foundPosition)
+            }
+        }
     }
 }

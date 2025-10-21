@@ -6,11 +6,12 @@ import kotlin.time.Duration
 
 object Utils {
 
-    val sourceFile = File("src/benchmark/resources/eqc.log")
+    val sourceFile = File("src/benchmark/resources/tool.log")
     val targetFolder = File("src/benchmark/resources/target/")
     val files get() = getFiles("src/benchmark/resources/target/*")
     var filesSizeKb : Long = 0
     val fileSizeMb: Double by lazy { filesSizeKb.toDouble() / 1024 }
+    val filesCnt = files.size
 
     @JvmStatic
     fun createFiles(){
@@ -30,7 +31,7 @@ object Utils {
 
     }
 
-    public fun printInfo(name: String, time: Duration, files : Int = 10, comparing: Double? = null){
+    public fun printInfo(name: String, time: Duration, files : Int = filesCnt, comparing: Double? = null){
         val size = fileSizeMb/(10 - files + 1)
 
         var avg = ""

@@ -1144,7 +1144,7 @@ class DoubleBufferedReaderRC2Test {
     }
 
     @Test
-    fun `readTo simple single char target AFTER`() {
+    fun `readTo char simple single char target AFTER`() {
         val text = "abcdefg"
         val reader = readerOf(text, 4)
         val result = reader.readTo("d", matchPosition = MatchPosition.AFTER)
@@ -1219,12 +1219,20 @@ class DoubleBufferedReaderRC2Test {
     }
 
     @Test
-    fun `readTo with readLimit stops early`() {
+    fun `readTo char with readLimit stops early`() {
         val text = "abcdefg"
         val reader = readerOf(text, 4)
-        val result = reader.readTo("f", matchPosition = MatchPosition.BEFORE, readLimit = 3)
+        val result = reader.readTo('f', matchPosition = MatchPosition.BEFORE, readLimit = 3)
         result shouldBe "abc" // reads only 3 characters
     }
+    @Test
+    fun `readTo string with readLimit stops early`() {
+        val text = "abcdefg"
+        val reader = readerOf(text, 4)
+        val result = reader.readTo("fg", matchPosition = MatchPosition.BEFORE, readLimit = 3)
+        result shouldBe "abc" // reads only 3 characters
+    }
+
 
     @Test
     fun `readTo complex multi-line scenario`() {
