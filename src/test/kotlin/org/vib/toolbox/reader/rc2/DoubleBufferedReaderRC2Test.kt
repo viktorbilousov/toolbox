@@ -1244,13 +1244,55 @@ class DoubleBufferedReaderRC2Test {
 
         assertSoftly {
             // read up to "\n2222" BEFORE → returns first line
-            reader.readTo("\n2222", matchPosition = MatchPosition.BEFORE) shouldBe "1111"
+            val t1 =   reader.readTo("\n2222", matchPosition = MatchPosition.BEFORE)
 
             // read up to "\n3333" AFTER → includes matched "\n2222"
-            reader.readTo("\n3333", matchPosition = MatchPosition.AFTER) shouldBe "\n2222\n3333"
-
+            val t2 =   reader.readTo("\n3333", matchPosition = MatchPosition.AFTER)
             // read up to "\n4444" BEFORE with limit → stops early
-            reader.readTo("\n4444", matchPosition = MatchPosition.BEFORE, readLimit = 2) shouldBe "\n4"
+            val t3 =   reader.readTo("\n4444", matchPosition = MatchPosition.BEFORE, readLimit = 2)
+
+            println("t1=`$t1`")
+            println("t2=`$t2`")
+            println("t3=`$t3`")
+
+
+            assertSoftly {
+                t1 shouldBe "1111"
+                t2 shouldBe  "\n2222\n3333"
+                t3 shouldBe  "\n4"
+            }
+        }
+    }
+
+
+    @Test
+    fun `readTo char complex scenario`() {
+        val text = "1111\n2222\n3333\n4444"
+        val reader = readerOf(text)
+
+        assertSoftly {
+            // read up to "\n2222" BEFORE → returns first line
+
+             reader.readTo('\n', matchPosition = MatchPosition.BEFORE) shouldBe "1111"
+             reader.readTo('\n', matchPosition = MatchPosition.BEFORE) shouldBe ""
+             reader.readTo('\n', matchPosition = MatchPosition.BEFORE) shouldBe ""
+             reader.goForward() shouldBe true
+
+            reader.readTo('\n', matchPosition = MatchPosition.BEFORE) shouldBe "2222"
+            reader.readTo('\n', matchPosition = MatchPosition.BEFORE) shouldBe ""
+            reader.readTo('\n', matchPosition = MatchPosition.BEFORE) shouldBe ""
+            reader.goForward() shouldBe true
+
+            reader.readTo('\n', matchPosition = MatchPosition.BEFORE) shouldBe "3333"
+            reader.readTo('\n', matchPosition = MatchPosition.BEFORE) shouldBe ""
+            reader.readTo('\n', matchPosition = MatchPosition.BEFORE) shouldBe ""
+            reader.goForward() shouldBe true
+
+            reader.readTo('\n', matchPosition = MatchPosition.BEFORE) shouldBe "4444"
+            reader.readTo('\n', matchPosition = MatchPosition.BEFORE) shouldBe ""
+            reader.readTo('\n', matchPosition = MatchPosition.BEFORE) shouldBe ""
+            reader.goForward() shouldBe false
+
         }
     }
 

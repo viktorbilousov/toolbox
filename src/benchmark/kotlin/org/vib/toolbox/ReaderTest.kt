@@ -347,11 +347,11 @@ class ReaderTest {
 
         val pattern = StrPattern(" >")
         doubleBufferedReaderText("READ TO 1 String(1) DoubleBufferedReaderRC2"){
-            text = readTo1(" >", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)!!
+            text = readTo(" >", matchPosition = HistoryBufferedReader.MatchPosition.AFTER)!!
         }
 
         doubleBufferedReaderText("READ TO 1 Pattern String(1) DoubleBufferedReaderRC2"){
-            text = readTo1(pattern, matchPosition = HistoryBufferedReader.MatchPosition.AFTER)!!
+            text = readTo(pattern, matchPosition = HistoryBufferedReader.MatchPosition.AFTER)!!
         }
 
         doubleBufferedReaderText("READ TO String(1) DoubleBufferedReaderRC2"){

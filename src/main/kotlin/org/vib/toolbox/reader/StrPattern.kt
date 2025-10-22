@@ -2,6 +2,8 @@ package org.vib.toolbox.reader
 
 class StrPattern(val string: String) {
     val lps : Array<Int>
+    val len = string.length
+    val firstChar = string[0]
 
     init {
         val m = string.length
