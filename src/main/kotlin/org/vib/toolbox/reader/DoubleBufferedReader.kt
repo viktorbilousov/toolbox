@@ -2,9 +2,8 @@ package org.vib.toolbox.reader
 import org.vib.toolbox.reader.HistoryBufferedReader.MatchPosition
 import java.io.IOException
 import java.io.Reader
-import java.util.Arrays
+import java.util.*
 import kotlin.math.abs
-import kotlin.text.isNotEmpty
 
 open class DoubleBufferedReader(
     private val input: Reader,
@@ -23,6 +22,71 @@ open class DoubleBufferedReader(
     private var endReached = false
     private var isHistoryBufferEmpty = true
     private var bufferCounter = 0;
+    private var isOpen = true
+    private var lock = Any()
+
+    companion object {
+        val defaultCharBufferSize = 8192
+        val defaultExpectedLineLength = 80
+
+        /**
+         * For iteration in kotlin is slow
+         */
+        @JvmStatic
+        private fun compareChar(c: Char, a: CharArray): Boolean {
+            val size = a.size
+
+            if (size >= 1) {
+                if (c == a[0]) return true
+                if (size == 1) return false
+            }
+            if (size >= 2) {
+                if (c == a[1]) return true
+                if (size == 2) return false
+            }
+            if (size >= 3) {
+                if (c == a[2]) return true
+                if (size == 3) return false
+            }
+            if (size >= 4) {
+                if (c == a[3]) return true
+                if (size == 4) return false
+            }
+            if (size >= 5) {
+                if (c == a[4]) return true
+                if (size == 5) return false
+            }
+            if (size >= 6) {
+                if (c == a[5]) return true
+                if (size == 6) return false
+            }
+            if (size >= 7) {
+                if (c == a[6]) return true
+                if (size == 7) return false
+            }
+            if (size >= 8) {
+                if (c == a[7]) return true
+                if (size == 8) return false
+            }
+            if (size >= 9) {
+                if (c == a[8]) return true
+                if (size == 9) return false
+            }
+            if (size >= 10) {
+                if (c == a[9]) return true
+                if (size == 10) return false
+            }
+//
+            if (size > 10) {
+                var i = 10;
+                while (i < size) {
+                    if (c == a[i]) return true
+                    i++
+                }
+            }
+            return false
+        }
+    }
 
     override fun getFromFirstReadToCurrent(): String {
         if (limit == 0) return "";
@@ -44,7 +108,7 @@ open class DoubleBufferedReader(
 
 
     override fun readFromCurrentToEnd(): String {
-        if(historyRelativePosition == 0) return ""
+        if (historyRelativePosition == 0) return ""
         val absoluteposition = pos - historyRelativePosition
         if (absoluteposition < 0) {
             if (isHistoryBufferEmpty) return String(historyBuffer, 0, pos + 1)
@@ -52,84 +116,90 @@ open class DoubleBufferedReader(
             sb.append(historyBuffer, absoluteposition + half, abs(absoluteposition))
             sb.append(headBuffer, 0, pos)
             return sb.toString()
-        }
-        else {
-            return String(headBuffer, absoluteposition, pos-absoluteposition)
+        } else {
+            return String(headBuffer, absoluteposition, pos - absoluteposition)
         }
     }
 
     override fun read(): Int {
-
-        if(historyRelativePosition > 0){
-            if(pos - historyRelativePosition < 0){
-                if(isHistoryBufferEmpty) return  -1;
-                val index = pos - historyRelativePosition + half
-                historyRelativePosition--
-                return historyBuffer[index].code
+        ensureOpen()
+        synchronized(lock) {
+            if (historyRelativePosition > 0) {
+                if (pos - historyRelativePosition < 0) {
+                    if (isHistoryBufferEmpty) return -1;
+                    val index = pos - historyRelativePosition + half
+                    historyRelativePosition--
+                    return historyBuffer[index].code
+                } else {
+                    val index = pos - historyRelativePosition
+                    historyRelativePosition--
+                    return headBuffer[index].code
+                }
+            } else {
+                if (pos >= limit) {
+                    if (!fillNextBuffer()) return -1
+                }
+                return headBuffer[pos++].code
             }
-            else{
-                val index = pos - historyRelativePosition
-                historyRelativePosition--
-                return headBuffer[index].code
-            }
-        }
-        else{
-            if (pos >= limit) {
-                if (!fillNextBuffer()) return -1
-            }
-            return headBuffer[pos++].code
         }
     }
 
     override fun read(cbuf: CharArray, off: Int, len: Int): Int {
+        ensureOpen()
+        synchronized(lock) {
+            var totalRead = 0
 
-        var totalRead = 0
+            while (totalRead < len) {
+                val absolutePosition = pos - historyRelativePosition
+                // read from stream
+                if (absolutePosition >= limit) {
+                    if (!fillNextBuffer()) break
+                }
+                var currentPosition = pos - historyRelativePosition
 
-        while (totalRead < len) {
-            val absolutePosition = pos - historyRelativePosition
-            // read from stream
-            if (absolutePosition >= limit) {
-                if (!fillNextBuffer()) break
-            }
-            var currentPosition = pos - historyRelativePosition
+                // read from history buffer
+                if (pos - historyRelativePosition < 0) {
+                    val positionInHistoryBuffer = pos - historyRelativePosition + half
+                    val available = minOf(half - positionInHistoryBuffer, len - totalRead)
+                    historyBuffer.copyInto(
+                        cbuf,
+                        off + totalRead,
+                        positionInHistoryBuffer,
+                        positionInHistoryBuffer + available
+                    )
+                    historyRelativePosition -= available
+                    totalRead += available
+                    continue;
+                }
 
-            // read from history buffer
-            if(pos - historyRelativePosition < 0){
-                val positionInHistoryBuffer = pos - historyRelativePosition + half
-                val available = minOf(half - positionInHistoryBuffer, len - totalRead)
-                historyBuffer.copyInto(cbuf, off + totalRead, positionInHistoryBuffer, positionInHistoryBuffer + available)
+                val available = minOf(limit - currentPosition, len - totalRead)
+                headBuffer.copyInto(cbuf, off + totalRead, currentPosition, currentPosition + available)
                 historyRelativePosition -= available
+                if (historyRelativePosition < 0) {
+                    pos -= historyRelativePosition // pos = pos - (-history) = pos + history
+                    historyRelativePosition = 0
+                }
                 totalRead += available
-                continue;
             }
-
-            val available = minOf(limit - currentPosition, len - totalRead)
-            headBuffer.copyInto(cbuf, off + totalRead, currentPosition, currentPosition + available)
-            historyRelativePosition -= available
-            if(historyRelativePosition < 0){
-                pos -= historyRelativePosition // pos = pos - (-history) = pos + history
-                historyRelativePosition = 0
-            }
-            totalRead += available
+            return if (totalRead == 0 && endReached) -1 else totalRead
         }
-        return if (totalRead == 0 && endReached) -1 else totalRead
     }
 
     override fun goBackAndGet(): Char? {
-        if(!goBack()) return null
-        if(!hasCurrent()) return null
+        if (!goBack()) return null
+        if (!hasCurrent()) return null
         return peekCurrent()
     }
 
     override fun goBack(steps: Int): Boolean {
-        for (i in  0 until steps) {
-            if(!goBack()) return false
+        for (i in 0 until steps) {
+            if (!goBack()) return false
         }
         return true
     }
 
     override fun peekPrevious(): Char? {
-        if(!hasPrevious()) return null
+        if (!hasPrevious()) return null
         goBack()
         val c = peekCurrent()
         goForward()
@@ -138,44 +208,42 @@ open class DoubleBufferedReader(
 
     override fun goForward(steps: Int): Boolean {
         for (i in 0 until steps) {
-            if(!goForward()) return false
+            if (!goForward()) return false
         }
         return true
     }
 
     override fun goForward(): Boolean {
-        if(historyRelativePosition != 0){
-            historyRelativePosition --;
+        if (historyRelativePosition != 0) {
+            historyRelativePosition--;
             return true
-        }
-        else{
+        } else {
             return read() != -1
         }
     }
 
     override fun goBackAndGet(steps: Int): Char? {
-        if(!goBack(steps-1)) return null
+        if (!goBack(steps - 1)) return null
         return goBackAndGet()
     }
 
     override fun peekNext(): Char? {
-        if(!goForward()) return null
+        if (!goForward()) return null
         val c = peekCurrent()
         goBack()
         return c
     }
 
     override fun hasNext(): Boolean {
-        if(endReached) return false
+        if (endReached) return false
 
         val absolutePosition = pos - historyRelativePosition
         // start of file
-        if(limit == 0){
+        if (limit == 0) {
             val res = goForward()
             pos = 0 // reset to fist position
             return res
-        }
-        else if(absolutePosition == limit) {
+        } else if (absolutePosition == limit) {
             val res = goForward()
             pos--;
             return res
@@ -184,81 +252,74 @@ open class DoubleBufferedReader(
     }
 
     override fun hasPrevious(): Boolean {
-        if(limit == 0) return false
+        if (limit == 0) return false
         // pos is pointer to "next to read". If pos = 1 -> first was read -> ok
         val absolutePosition = pos - historyRelativePosition - 1
-        if(absolutePosition == 0 && isHistoryBufferEmpty){
+        if (absolutePosition == 0 && isHistoryBufferEmpty) {
             return false
         }
-        if(absolutePosition + half < 0) return false
+        if (absolutePosition + half < 0) return false
         return true
     }
 
     private fun canBeMovedBack(): Boolean {
-        if(limit == 0) return false
+        if (limit == 0) return false
         // pos is pointer to "next to read". If pos = 1 -> first was read -> ok
         val absolutePosition = pos - historyRelativePosition
-        if(absolutePosition == 0 && isHistoryBufferEmpty){
+        if (absolutePosition == 0 && isHistoryBufferEmpty) {
             return false
         }
-        if(absolutePosition + half < 0) return false
+        if (absolutePosition + half < 0) return false
         return true
     }
 
 
-
     override fun goBack(): Boolean {
         // no read values
-        if(!canBeMovedBack()){
+        if (!canBeMovedBack()) {
             return false;
         }
 
         // Move backward
-        historyRelativePosition ++;
+        historyRelativePosition++;
 
         val absolutePosition = pos - historyRelativePosition
 
-        if(absolutePosition < 0){
+        if (absolutePosition < 0) {
             // check in history buffer
-            if(!isHistoryBufferEmpty && absolutePosition + half >= 0){
+            if (!isHistoryBufferEmpty && absolutePosition + half >= 0) {
                 return true
-            }
-            else{
+            } else {
                 // go forward to first read character
                 historyRelativePosition--
                 return false;
             }
-        }
-        else{
+        } else {
             return true
         }
     }
 
     override fun peekCurrent(): Char? {
         // pos is pointer to "next to read", so current will be pos-1
-        try {
-            var position = pos - 1 - historyRelativePosition
-            if(position < 0){
-                if(isHistoryBufferEmpty) return null
-                position += half
-                return historyBuffer[position]
-            }
-            return headBuffer[position]
-        }catch (e: Exception){
-            hasCurrent()
-            throw e
+        var position = pos - 1 - historyRelativePosition
+        if (position < 0) {
+            if (isHistoryBufferEmpty) return null
+            position += half
+            return historyBuffer[position]
         }
+        return headBuffer[position]
+
 
     }
 
 
-
-    override fun hasCurrent() : Boolean{
-        if(limit == 0)  return false
+    override fun hasCurrent(): Boolean {
+        ensureOpen()
+        if (limit == 0) return false
         // pos is pointer to "next to read", so current will be pos-1
         val absolutePosition = pos - historyRelativePosition
-        if(absolutePosition-1 < 0 && isHistoryBufferEmpty) return false
-        if(absolutePosition-1 + half < 0 ) return false
+        if (absolutePosition - 1 < 0 && isHistoryBufferEmpty) return false
+        if (absolutePosition - 1 + half < 0) return false
         return true
     }
 
@@ -266,14 +327,14 @@ open class DoubleBufferedReader(
     override fun goBackTo(
         vararg targets: String,
         matchPosition: MatchPosition,
-        resetOnFail: Boolean ,
+        resetOnFail: Boolean,
         limit: Int
     ): Boolean {
         val targets = targets.filter { it.isNotEmpty() }
         if (targets.isEmpty()) return false
-        if(targets.all { it.length == 1 }){
+        if (targets.all { it.length == 1 }) {
             val arr = targets.map { it[0] }.toCharArray()
-            return goBackTo(targets = arr, matchPosition= matchPosition, resetOnFail = resetOnFail, limit = limit)
+            return goBackTo(targets = arr, matchPosition = matchPosition, resetOnFail = resetOnFail, limit = limit)
         }
 
         var startPos = historyRelativePosition
@@ -308,8 +369,10 @@ open class DoubleBufferedReader(
                     }
                     if (matched) {
                         when (matchPosition) {
-                            MatchPosition.BEFORE -> { /* already before match */ goBack() }
-                            MatchPosition.AFTER -> repeat(target.length-1) { read() }
+                            MatchPosition.BEFORE -> { /* already before match */ goBack()
+                            }
+
+                            MatchPosition.AFTER -> repeat(target.length - 1) { read() }
                         }
                         return true
                     }
@@ -331,7 +394,7 @@ open class DoubleBufferedReader(
             endReached = true
             return false
         }
-        if(limit != 0){
+        if (limit != 0) {
             isHistoryBufferEmpty = false
         }
 
@@ -346,26 +409,24 @@ open class DoubleBufferedReader(
         return true
     }
 
-    private fun calculateEndBufferReadLimit(readLimit: HistoryBufferedReader.ReadLimit): Int?{
-        if(readLimit == HistoryBufferedReader.ReadLimit.END_OF_BUFFER){
-            if(limit == 0){
-                if(!hasNext()) return null
+    private fun calculateEndBufferReadLimit(readLimit: HistoryBufferedReader.ReadLimit): Int? {
+        if (readLimit == HistoryBufferedReader.ReadLimit.END_OF_BUFFER) {
+            if (limit == 0) {
+                if (!hasNext()) return null
             }
             val absolutePosition = pos - historyRelativePosition
 
             // end of the buffer
-            if(absolutePosition == limit){
+            if (absolutePosition == limit) {
                 return half
             }
 
-            if(isHistoryBufferEmpty){
-                return half*2 - absolutePosition
-            }
-            else {
+            if (isHistoryBufferEmpty) {
+                return half * 2 - absolutePosition
+            } else {
                 return half - absolutePosition
             }
-        }
-        else{
+        } else {
             return readLimit.size
         }
     }
@@ -377,7 +438,7 @@ open class DoubleBufferedReader(
         readLimit: HistoryBufferedReader.ReadLimit
     ): Boolean {
         val limit = calculateEndBufferReadLimit(readLimit) ?: return false
-        return goForwardTo(targets = targets, matchPosition, resetOnFail,  limit)
+        return goForwardTo(targets = targets, matchPosition, resetOnFail, limit)
     }
 
 //    override fun goForwardTo(
@@ -455,7 +516,7 @@ open class DoubleBufferedReader(
         readLimit: Int
     ): Boolean {
 
-        if(targets.isEmpty()) return false
+        if (targets.isEmpty()) return false
 
         val size = targets.size
         val pattern = arrayOfNulls<StrPattern>(size)
@@ -474,7 +535,7 @@ open class DoubleBufferedReader(
         readLimit: Int = 0
     ): Boolean {
 
-        if(targets.isEmpty()) return false
+        if (targets.isEmpty()) return false
 
         val startMark = markPosition()
         val size = targets.size
@@ -510,7 +571,7 @@ open class DoubleBufferedReader(
             finished = true
             Arrays.fill(pointers, 0)
 
-            if(!unlimited) {
+            if (!unlimited) {
                 restReadLimit = readLimit - (markPosition() - startMark).toInt()
             }
             // execute KNC
@@ -522,7 +583,7 @@ open class DoubleBufferedReader(
                     return false // EOF
                 }
                 index++
-                if(!unlimited) restReadLimit--
+                if (!unlimited) restReadLimit--
 
                 ch = read.toChar()
 
@@ -588,88 +649,87 @@ open class DoubleBufferedReader(
         resetOnFail: Boolean,
         readLimit: Int
     ): Boolean {
-        if(targets.isEmpty()) return false
+        if (targets.isEmpty()) return false
 
         val positionBefore = markPosition()
         var startedPosition: Int
-        var found : Boolean
+        var found: Boolean
         var c: Char
         var foundPosition: Int
         var endedInHead = false
         var limitReached = false
         var readCnt = 0;
         ensureOpen()
-        bufferLoop@ while (true) {
-            var aPos = pos - historyRelativePosition
-            if (aPos >= limit) {
-                fillNextBuffer()
-                aPos = pos - historyRelativePosition
-            }
-            if (aPos >= limit || limitReached) { /* EOF */
-
-                if(resetOnFail){
-                    resetPosition(positionBefore)
+        synchronized(lock) {
+            bufferLoop@ while (true) {
+                var aPos = pos - historyRelativePosition
+                if (aPos >= limit) {
+                    fillNextBuffer()
+                    aPos = pos - historyRelativePosition
                 }
+                if (aPos >= limit || limitReached) { /* EOF */
 
-                return false
-            }
-            found = false
-            c = Char(0)
+                    if (resetOnFail) {
+                        resetPosition(positionBefore)
+                    }
 
-            foundPosition = aPos
-            startedPosition = aPos
-            endedInHead = false
-            charLoop@ while (foundPosition < limit) {
-                if (foundPosition < 0)
-                {
-                    c = historyBuffer[foundPosition + half]
-                    endedInHead = false
+                    return false
                 }
-                else {
-                    c = headBuffer[foundPosition]
-                    endedInHead = true
-                }
+                found = false
+                c = Char(0)
+
+                foundPosition = aPos
+                startedPosition = aPos
+                endedInHead = false
+                charLoop@ while (foundPosition < limit) {
+                    if (foundPosition < 0) {
+                        c = historyBuffer[foundPosition + half]
+                        endedInHead = false
+                    } else {
+                        c = headBuffer[foundPosition]
+                        endedInHead = true
+                    }
 
 
-                if (compareChar(c, targets)) {
-                    found = true
-                    break@charLoop
-                }
+                    if (compareChar(c, targets)) {
+                        found = true
+                        break@charLoop
+                    }
 
 
-                foundPosition++
-                readCnt++
+                    foundPosition++
+                    readCnt++
 
-                if(readLimit > 0 && readCnt >= readLimit){
-                    limitReached = true
-                    break@charLoop
-                }
-            }
-
-
-            if(found){
-                when (matchPosition) {
-                    MatchPosition.BEFORE -> {}
-                    MatchPosition.AFTER -> {
-                        foundPosition++
+                    if (readLimit > 0 && readCnt >= readLimit) {
+                        limitReached = true
+                        break@charLoop
                     }
                 }
-            }
 
-            if (foundPosition < pos) {
-                historyRelativePosition = pos - foundPosition
-            } else {
-                pos = foundPosition
-                historyRelativePosition = 0
-            }
 
-            if (found) {
-                return true
+                if (found) {
+                    when (matchPosition) {
+                        MatchPosition.BEFORE -> {}
+                        MatchPosition.AFTER -> {
+                            foundPosition++
+                        }
+                    }
+                }
+
+                if (foundPosition < pos) {
+                    historyRelativePosition = pos - foundPosition
+                } else {
+                    pos = foundPosition
+                    historyRelativePosition = 0
+                }
+
+                if (found) {
+                    return true
+                }
             }
         }
 
     }
-
 
 
     override fun readTo(
@@ -679,141 +739,140 @@ open class DoubleBufferedReader(
         nullIfNotFound: Boolean,
         readLimit: Int
     ): String? {
-        if(targets.isEmpty()) return null
+        if (targets.isEmpty()) return null
 
         val positionBefore = markPosition()
         var startedPosition: Int
-        var stringBuffer: StringBuffer? = null
-        var found : Boolean
+        var found: Boolean
         var c: Char
         var foundPosition: Int
         var endedInHead = false
         var limitReached = false
         var prevRead = 0;
         ensureOpen()
-        bufferLoop@ while (true) {
-            var aPos = pos - historyRelativePosition
-            if (aPos >= limit) {
-                fillNextBuffer()
-                aPos = pos - historyRelativePosition
-            }
-            if (aPos >= limit || limitReached) { /* EOF */
-
-                if(resetOnFail){
-                    resetPosition(positionBefore)
+        synchronized(lock) {
+            var stringBuffer: StringBuffer? = null
+            bufferLoop@ while (true) {
+                var aPos = pos - historyRelativePosition
+                if (aPos >= limit) {
+                    fillNextBuffer()
+                    aPos = pos - historyRelativePosition
                 }
+                if (aPos >= limit || limitReached) { /* EOF */
 
-                if (!nullIfNotFound)
-                {
-                    return stringBuffer?.toString() ?: ""
-                }
-                else
-                {
-                    return null
-                }
-            }
-            found = false
-            c = Char(0)
-
-            val startedInHistory = aPos < 0
-            foundPosition = aPos
-            startedPosition = aPos
-            endedInHead = false
-            prevRead = stringBuffer?.length ?: 0
-            charLoop@ while (foundPosition < limit) {
-                if (foundPosition < 0)
-                {
-                    c = historyBuffer[foundPosition + half]
-                    endedInHead = false
-                }
-                else {
-                    c = headBuffer[foundPosition]
-                    endedInHead = true
-                }
-
-
-                if (compareChar(c, targets)) {
-                    found = true
-                    break@charLoop
-                }
-
-
-                foundPosition++
-
-                if(readLimit > 0 && prevRead + (foundPosition - aPos) >= readLimit){
-                    limitReached = true
-                    break@charLoop
-                }
-            }
-
-
-            if(found){
-                when (matchPosition) {
-                    MatchPosition.BEFORE -> {}
-                    MatchPosition.AFTER -> {
-                        foundPosition++
+                    if (resetOnFail) {
+                        resetPosition(positionBefore)
                     }
-                }
-            }
 
-            if (foundPosition < pos) {
-                historyRelativePosition = pos + foundPosition - half
-            } else {
-                pos = foundPosition
-                historyRelativePosition = 0
-            }
-
-            if (found) {
-
-                val str: String
-                if (stringBuffer == null) {
-                    if (startedInHistory) {
-                        if (!endedInHead) {
-                            str = String(historyBuffer, startedPosition + half, foundPosition - startedPosition)
-                        } else {
-                            stringBuffer = StringBuffer(defaultExpectedLineLength)
-                            stringBuffer.append(
-                                historyBuffer,
-                                startedPosition + half,
-                                historyBuffer.size - startedPosition
-                            )
-                            stringBuffer.append(headBuffer, 0, foundPosition)
-                            str = stringBuffer.toString()
-                        }
+                    if (!nullIfNotFound) {
+                        return stringBuffer?.toString() ?: ""
                     } else {
-                        str = String(headBuffer, startedPosition, foundPosition - startedPosition)
+                        return null
                     }
+                }
+                found = false
+                c = Char(0)
+
+                val startedInHistory = aPos < 0
+                foundPosition = aPos
+                startedPosition = aPos
+                endedInHead = false
+                prevRead = stringBuffer?.length ?: 0
+                charLoop@ while (foundPosition < limit) {
+                    if (foundPosition < 0) {
+                        c = historyBuffer[foundPosition + half]
+                        endedInHead = false
+                    } else {
+                        c = headBuffer[foundPosition]
+                        endedInHead = true
+                    }
+
+
+                    if (compareChar(c, targets)) {
+                        found = true
+                        break@charLoop
+                    }
+
+
+                    foundPosition++
+
+                    if (readLimit > 0 && prevRead + (foundPosition - aPos) >= readLimit) {
+                        limitReached = true
+                        break@charLoop
+                    }
+                }
+
+
+                if (found) {
+                    when (matchPosition) {
+                        MatchPosition.BEFORE -> {}
+                        MatchPosition.AFTER -> {
+                            foundPosition++
+                        }
+                    }
+                }
+
+                if (foundPosition < pos) {
+                    historyRelativePosition = pos + foundPosition - half
                 } else {
-                    if (startedInHistory) {
-                        if (!endedInHead) {
-                            stringBuffer.append(historyBuffer, startedPosition + half, foundPosition - startedPosition)
-                        } else {
-                            stringBuffer.append(historyBuffer, startedPosition + half, abs(aPos))
-                            stringBuffer.append(headBuffer, 0, foundPosition)
-                        }
-                    } else {
-                        stringBuffer.append(headBuffer, startedPosition, foundPosition - startedPosition)
-                    }
-                    str = stringBuffer.toString()
+                    pos = foundPosition
+                    historyRelativePosition = 0
                 }
 
-                return str
-            }
+                if (found) {
 
-            if (stringBuffer == null) {
-                stringBuffer = StringBuffer(defaultExpectedLineLength)
-            }
-            if (startedInHistory) {
-                stringBuffer.append(historyBuffer, startedPosition + half, abs(startedPosition))
-                stringBuffer.append(headBuffer)
-            } else {
-                stringBuffer.append(headBuffer, startedPosition,  foundPosition - startedPosition)
+                    val str: String
+                    if (stringBuffer == null) {
+                        if (startedInHistory) {
+                            if (!endedInHead) {
+                                str = String(historyBuffer, startedPosition + half, foundPosition - startedPosition)
+                            } else {
+                                stringBuffer = StringBuffer(defaultExpectedLineLength)
+                                stringBuffer.append(
+                                    historyBuffer,
+                                    startedPosition + half,
+                                    historyBuffer.size - startedPosition
+                                )
+                                stringBuffer.append(headBuffer, 0, foundPosition)
+                                str = stringBuffer.toString()
+                            }
+                        } else {
+                            str = String(headBuffer, startedPosition, foundPosition - startedPosition)
+                        }
+                    } else {
+                        if (startedInHistory) {
+                            if (!endedInHead) {
+                                stringBuffer.append(
+                                    historyBuffer,
+                                    startedPosition + half,
+                                    foundPosition - startedPosition
+                                )
+                            } else {
+                                stringBuffer.append(historyBuffer, startedPosition + half, abs(aPos))
+                                stringBuffer.append(headBuffer, 0, foundPosition)
+                            }
+                        } else {
+                            stringBuffer.append(headBuffer, startedPosition, foundPosition - startedPosition)
+                        }
+                        str = stringBuffer.toString()
+                    }
+
+                    return str
+                }
+
+                if (stringBuffer == null) {
+                    stringBuffer = StringBuffer(defaultExpectedLineLength)
+                }
+                if (startedInHistory) {
+                    stringBuffer.append(historyBuffer, startedPosition + half, abs(startedPosition))
+                    stringBuffer.append(headBuffer)
+                } else {
+                    stringBuffer.append(headBuffer, startedPosition, foundPosition - startedPosition)
+                }
             }
         }
 
     }
-
-
 
 
     private fun readToBuffer(
@@ -823,11 +882,11 @@ open class DoubleBufferedReader(
         resetOnFail: Boolean,
         readLimit: Int
     ): Boolean {
-        if(targets.isEmpty()) return false
+        if (targets.isEmpty()) return false
 
         val positionBefore = markPosition()
         var startedPosition: Int
-        var found : Boolean
+        var found: Boolean
         var c: Char
         var foundPosition: Int
         var endedInHead = false
@@ -843,7 +902,7 @@ open class DoubleBufferedReader(
             }
             if (aPos >= limit || limitReached) { /* EOF */
 
-                if(resetOnFail){
+                if (resetOnFail) {
                     resetPosition(positionBefore)
                 }
                 return false
@@ -857,12 +916,10 @@ open class DoubleBufferedReader(
             endedInHead = false
             prevRead = stringBuffer.length - bufferSizeBefore
             charLoop@ while (foundPosition < limit) {
-                if (foundPosition < 0)
-                {
+                if (foundPosition < 0) {
                     c = historyBuffer[foundPosition + half]
                     endedInHead = false
-                }
-                else {
+                } else {
                     c = headBuffer[foundPosition]
                     endedInHead = true
                 }
@@ -876,14 +933,14 @@ open class DoubleBufferedReader(
 
                 foundPosition++
 
-                if(readLimit > 0 && prevRead + (foundPosition - aPos) >= readLimit){
+                if (readLimit > 0 && prevRead + (foundPosition - aPos) >= readLimit) {
                     limitReached = true
                     break@charLoop
                 }
             }
 
 
-            if(found){
+            if (found) {
                 when (matchPosition) {
                     MatchPosition.BEFORE -> {}
                     MatchPosition.AFTER -> {
@@ -922,7 +979,7 @@ open class DoubleBufferedReader(
                 stringBuffer.append(historyBuffer, startedPosition + half, abs(startedPosition))
                 stringBuffer.append(headBuffer)
             } else {
-                stringBuffer.append(headBuffer, startedPosition,  foundPosition - startedPosition)
+                stringBuffer.append(headBuffer, startedPosition, foundPosition - startedPosition)
             }
         }
 
@@ -936,7 +993,7 @@ open class DoubleBufferedReader(
         nullIfNotFound: Boolean,
         readLimit: Int
     ): String? {
-        if(targets.isEmpty()) return null
+        if (targets.isEmpty()) return null
 
         val size = targets.size
         val pattern = arrayOfNulls<StrPattern>(size)
@@ -955,8 +1012,8 @@ open class DoubleBufferedReader(
         readLimit: Int = 0
     ): String? {
 
-        if(targets.isEmpty()) {
-            return if(nullIfNotFound) null else ""
+        if (targets.isEmpty()) {
+            return if (nullIfNotFound) null else ""
         }
 
         val startMark = markPosition()
@@ -967,7 +1024,7 @@ open class DoubleBufferedReader(
         val pointers = IntArray(size)
 
         var i = 0
-        while ( i < size){
+        while (i < size) {
             firstChars[i] = targets[i].firstChar
             sizes[i] = targets[i].len
             found[i] = false
@@ -988,105 +1045,101 @@ open class DoubleBufferedReader(
         val readStringBuilder = StringBuilder(defaultCharBufferSize)
         var pointer: Int
         var findFirst: Boolean
-
-        while (unlimited || restReadLimit > 0) {
-
-            findFirst =
-                readToBuffer(targets = firstChars, stringBuffer = readStringBuilder,
-                    matchPosition = MatchPosition.BEFORE,
-                    resetOnFail,
-                    restReadLimit)
-
-            if (!findFirst) {
-                return if(nullIfNotFound) null else readStringBuilder.toString()
-            }
-
-            index = -1
-
-            if(!unlimited) {
-                restReadLimit = readLimit - (markPosition() - startMark).toInt()
-            }
-            // execute KNC
+        ensureOpen()
+        synchronized(lock) {
             while (unlimited || restReadLimit > 0) {
 
-                finished = true
-                read = read()
-                if (read == -1) {
-                    return if(nullIfNotFound) null else readStringBuilder.toString()
-                }
-                index++
-                if(!unlimited) restReadLimit--
+                findFirst =
+                    readToBuffer(
+                        targets = firstChars, stringBuffer = readStringBuilder,
+                        matchPosition = MatchPosition.BEFORE,
+                        resetOnFail,
+                        restReadLimit
+                    )
 
-                ch = read.toChar()
-                readStringBuilder.append(ch)
-                for (i in 0 until size) {
-                    pointer = pointers[i]
-                    if (found[i]) continue
-                    while (true) {
-                        if (targets[i].string[pointers[i]] == ch) {
-                            pointer = ++pointers[i]
-                            // found!
-                            if (pointer == sizes[i]) {
-                                foundAny = true
-                                found[i] = true
-                                if (pointer > maxLen) {
-                                    maxLen = pointer
+                if (!findFirst) {
+                    return if (nullIfNotFound) null else readStringBuilder.toString()
+                }
+
+                index = -1
+
+                if (!unlimited) {
+                    restReadLimit = readLimit - (markPosition() - startMark).toInt()
+                }
+                // execute KNC
+                while (unlimited || restReadLimit > 0) {
+
+                    finished = true
+                    read = read()
+                    if (read == -1) {
+                        return if (nullIfNotFound) null else readStringBuilder.toString()
+                    }
+                    index++
+                    if (!unlimited) restReadLimit--
+
+                    ch = read.toChar()
+                    readStringBuilder.append(ch)
+                    for (i in 0 until size) {
+                        pointer = pointers[i]
+                        if (found[i]) continue
+                        while (true) {
+                            if (targets[i].string[pointers[i]] == ch) {
+                                pointer = ++pointers[i]
+                                // found!
+                                if (pointer == sizes[i]) {
+                                    foundAny = true
+                                    found[i] = true
+                                    if (pointer > maxLen) {
+                                        maxLen = pointer
+                                    }
+                                    break
                                 }
-                                break
-                            }
-                            finished = false
-                            break
-                        } else {
-                            if (pointer <= 0) {
-                                break
-                            }
-                            else
-                            {
                                 finished = false
-                                var prev = pointers[i]
-                                pointers[i] = targets[i].lps[pointer - 1]
-                                pointer = pointers[i]
+                                break
+                            } else {
+                                if (pointer <= 0) {
+                                    break
+                                } else {
+                                    finished = false
+                                    var prev = pointers[i]
+                                    pointers[i] = targets[i].lps[pointer - 1]
+                                    pointer = pointers[i]
+                                }
                             }
                         }
                     }
-                }
 
-                if (finished) {
-                    break
-                }
-            }
-
-            if (foundAny) {
-
-                when (matchPosition) {
-                    MatchPosition.BEFORE -> {
-                        goBack(maxLen)
-                        return readStringBuilder.substring(0, readStringBuilder.length - maxLen)
-                    }
-                    MatchPosition.AFTER -> {
-                        return readStringBuilder.toString()
+                    if (finished) {
+                        break
                     }
                 }
 
-            } else {
-                restReadLimit -= index
-            }
+                if (foundAny) {
 
+                    when (matchPosition) {
+                        MatchPosition.BEFORE -> {
+                            goBack(maxLen)
+                            return readStringBuilder.substring(0, readStringBuilder.length - maxLen)
+                        }
+
+                        MatchPosition.AFTER -> {
+                            return readStringBuilder.toString()
+                        }
+                    }
+
+                } else {
+                    restReadLimit -= index
+                }
+
+            }
         }
 
         if (resetOnFail) {
             resetPosition(startMark)
         }
-        return if(nullIfNotFound) null else readStringBuilder.toString()
+        return if (nullIfNotFound) null else readStringBuilder.toString()
 
     }
-
-
-
-
-
-
-
 
 
     override fun goForwardTo(
@@ -1114,7 +1167,7 @@ open class DoubleBufferedReader(
             // Check for match
             for (target in targets) {
                 if (ch == target) {
-                    if(matchPosition ==  MatchPosition.BEFORE){
+                    if (matchPosition == MatchPosition.BEFORE) {
                         goBack()
                     }
                     return true
@@ -1130,221 +1183,44 @@ open class DoubleBufferedReader(
     }
 
 
-
     override fun markPosition(): Long {
-        if(bufferCounter == 0) return 0
-        return half.toLong()*(bufferCounter-1) + pos-historyRelativePosition;
+        if (bufferCounter == 0) return 0
+        return half.toLong() * (bufferCounter - 1) + pos - historyRelativePosition;
     }
 
     override fun resetPosition(markedPosition: Long) {
-
-        if(markedPosition < 0){
+        ensureOpen()
+        if (markedPosition < 0) {
             error("Invalid mark $markedPosition!")
         }
         val markedBufferCnt = (markedPosition / half).toInt() + 1
         val currentBufferCnt = bufferCounter
         val diff = currentBufferCnt - markedBufferCnt
-        if(diff >= 2){
+        if (diff >= 2) {
             throw IOException("Position is overhead!")
         }
-        if(diff < 0){
-            error("Invalid Mark $markedPosition! Mark if ahead of current position `${pos + (bufferCounter*half-1)}`")
+        if (diff < 0) {
+            error("Invalid Mark $markedPosition! Mark if ahead of current position `${pos + (bufferCounter * half - 1)}`")
         }
 
         val positionToMove = (markedPosition % half).toInt()
 
-        if(diff == 0){
-            historyRelativePosition =  pos - positionToMove
-        }
-        else {
-            historyRelativePosition =  pos + half - positionToMove
+        if (diff == 0) {
+            historyRelativePosition = pos - positionToMove
+        } else {
+            historyRelativePosition = pos + half - positionToMove
         }
     }
 
 
     override fun close() {
         input.close()
+        isOpen = false
     }
 
     @Throws(IOException::class)
     private fun ensureOpen() {
-        // TODO
+        if (!isOpen) throw IOException("Stream closed")
     }
 
-    companion object{
-        val defaultCharBufferSize = 8192
-        val defaultExpectedLineLength = 80
-
-        /**
-         * For iteration in kotlin is slow
-         */
-        @JvmStatic
-        private fun compareChar(c: Char, a: CharArray): Boolean {
-            val size = a.size
-
-            if(size >= 1) {
-                if(c == a[0]) return true
-                if(size == 1) return false
-            }
-            if(size >= 2) {
-                if(c == a[1]) return true
-                if(size == 2) return false
-            }
-            if(size >= 3) {
-                if(c == a[2]) return true
-                if(size == 3) return false
-            }
-            if(size >= 4) {
-                if(c == a[3]) return true
-                if(size == 4) return false
-            }
-            if(size >= 5) {
-                if(c == a[4]) return true
-                if(size == 5) return false
-            }
-            if(size >= 6) {
-                if(c == a[5]) return true
-                if(size == 6) return false
-            }
-            if(size >= 7) {
-                if(c == a[6]) return true
-                if(size == 7) return false
-            }
-            if(size >= 8) {
-                if(c == a[7]) return true
-                if(size == 8) return false
-            }
-            if(size >= 9) {
-                if(c == a[8]) return true
-                if(size == 9) return false
-            }
-            if(size >= 10) {
-                if(c == a[9]) return true
-                if(size == 10) return false
-            }
-//
-            if(size > 10) {
-                var i = 10;
-                while ( i < size){
-                    if (c == a[i]) return true
-                    i++
-                }
-            }
-//
-//        if(size == 0)  return false
-
-            return false
-        }
-    }
-
-
-    /**
-     * Reads a line of text.  A line is considered to be terminated by any one
-     * of a line feed ('\n'), a carriage return ('\r'), a carriage return
-     * followed immediately by a line feed, or by reaching the end-of-file
-     * (EOF).
-     *
-     * @param      ignoreLF  If true, the next '\n' will be skipped
-     *
-     * @return     A String containing the contents of the line, not including
-     * any line-termination characters, or null if the end of the
-     * stream has been reached without reading any characters
-     *
-     * @see java.io.LineNumberReader.readLine
-     * @exception  IOException  If an I/O error occurs
-     */
-    @Throws(IOException::class)
-    fun readLine(target: Char): String? {
-
-        var startedPosition: Int
-        var stringBuffer: StringBuffer? = null
-        var found : Boolean
-        var c: Char
-        var foundPosition: Int
-        var endedInHead = false
-        ensureOpen()
-        bufferLoop@ while (true) {
-            val aPos = pos - historyRelativePosition
-            if (aPos >= limit) fillNextBuffer()
-            if (aPos >= limit) { /* EOF */
-                if (stringBuffer != null && stringBuffer.length > 0) {
-                    return stringBuffer.toString()
-                } else {
-                    return null
-                }
-            }
-            found = false
-            c = Char(0)
-
-            val startedInHistory = aPos < 0
-            foundPosition = aPos
-            endedInHead = false
-            charLoop@ while (foundPosition < limit) {
-                if (foundPosition < 0) {
-                    c = historyBuffer[foundPosition + half]
-                } else {
-                    c = headBuffer[foundPosition]
-                    endedInHead = true
-                }
-
-                if (c == target) {
-                    found = true
-                    break@charLoop
-                }
-                foundPosition++
-            }
-            startedPosition = aPos
-            if (foundPosition < pos) {
-                historyRelativePosition = pos + foundPosition - half
-            } else {
-                pos = foundPosition
-                historyRelativePosition = 0
-            }
-
-            if (found) {
-                val str: String
-                if (stringBuffer == null) {
-                    if (startedInHistory) {
-                        if (!endedInHead) {
-                            str = String(historyBuffer, startedPosition + half, foundPosition - startedPosition)
-                        } else {
-                            stringBuffer = StringBuffer(defaultExpectedLineLength)
-                            stringBuffer.append(
-                                historyBuffer,
-                                startedPosition + half,
-                                historyBuffer.size - startedPosition
-                            )
-                            stringBuffer.append(headBuffer, 0, foundPosition)
-                            str = stringBuffer.toString()
-                        }
-                    } else {
-                        str = String(headBuffer, startedPosition, foundPosition - startedPosition)
-                    }
-                } else {
-                    if (startedInHistory) {
-                        if (!endedInHead) {
-                            stringBuffer.append(historyBuffer, startedPosition + half, foundPosition - startedPosition)
-                        } else {
-                            stringBuffer.append(historyBuffer, startedPosition + half, abs(aPos))
-                            stringBuffer.append(headBuffer, 0, foundPosition)
-                        }
-                    } else {
-                        stringBuffer.append(headBuffer, startedPosition, foundPosition - startedPosition)
-                    }
-                    str = stringBuffer.toString()
-                }
-
-                goForward()
-                return str
-            }
-
-            if (stringBuffer == null) stringBuffer = StringBuffer(defaultExpectedLineLength)
-            if (startedPosition < 0) {
-                stringBuffer.append(historyBuffer, startedPosition + half, abs(startedPosition))
-                stringBuffer.append(headBuffer)
-            } else {
-                stringBuffer.append(headBuffer, startedPosition, half - foundPosition)
-            }
-        }
-    }
 }
