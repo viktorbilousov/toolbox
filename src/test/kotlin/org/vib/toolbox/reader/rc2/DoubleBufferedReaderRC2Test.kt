@@ -6,10 +6,12 @@ import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
+import org.vib.toolbox.getFiles
 import org.vib.toolbox.reader.DoubleBufferedReader
 import org.vib.toolbox.reader.HistoryBufferedReader.MatchPosition
 import org.vib.toolbox.reader.HistoryBufferedReader.ReadLimit
 import org.vib.toolbox.reader.readChar
+import java.io.File
 import java.io.IOException
 import java.io.StringReader
 
@@ -1000,7 +1002,7 @@ class DoubleBufferedReaderRC2Test {
         val text = "1234567890"
         for ((index, ch) in text.withIndex()) {
             val reader = readerOf(text, 4)
-            val t = reader.readTo(text[index])
+            val t = reader.readTo(text[index], matchPosition = MatchPosition.BEFORE)
             println(text[index] + " : "+ t)
             t shouldBe text.take(index)
         }
@@ -1013,7 +1015,7 @@ class DoubleBufferedReaderRC2Test {
         for ((index, ch) in textToSearch.withIndex()) {
             val reader = readerOf(text, 4)
             reader.goForwardTo('|', matchPosition = MatchPosition.AFTER)
-            val t = reader.readTo(textToSearch[index])
+            val t = reader.readTo(textToSearch[index], matchPosition = MatchPosition.BEFORE)
             println(textToSearch[index] + " : "+ t)
             t shouldBe textToSearch.take(index)
         }
@@ -1073,11 +1075,11 @@ class DoubleBufferedReaderRC2Test {
         val expected3 = text.split("\nA")[2]
 
 
-        reader.readTo("\nA") shouldBe expected1
+        reader.readTo("\nA", matchPosition = MatchPosition.BEFORE) shouldBe expected1
         reader.goForward(2)
-        reader.readTo("\nA") shouldBe expected2
+        reader.readTo("\nA", matchPosition = MatchPosition.BEFORE) shouldBe expected2
         reader.goForward(2)
-        reader.readTo("\nA") shouldBe expected3
+        reader.readTo("\nA", matchPosition = MatchPosition.BEFORE) shouldBe expected3
     }
 
     @Test
@@ -1098,11 +1100,11 @@ class DoubleBufferedReaderRC2Test {
         val expected3 = text.split("\n")[2]
 
 
-        reader.readTo("\n") shouldBe expected1
+        reader.readTo("\n", matchPosition = MatchPosition.BEFORE) shouldBe expected1
         reader.goForward()
-        reader.readTo("\n") shouldBe expected2
+        reader.readTo("\n", matchPosition = MatchPosition.BEFORE) shouldBe expected2
         reader.goForward()
-        reader.readTo("\n") shouldBe expected3
+        reader.readTo("\n", matchPosition = MatchPosition.BEFORE) shouldBe expected3
     }
 
 
@@ -1297,7 +1299,27 @@ class DoubleBufferedReaderRC2Test {
     }
 
 
+    @Test
+    fun `should find all new records in file`(){
+        val file = File("src/test/resources/tool.log")
 
+        val lines  =  file.readText().split("\n")
+        val cnt = lines.count { it.contains("H <-- E") || it.contains("H --> E") }
+
+        val reader = DoubleBufferedReader(file.reader())
+        var foundCnt = 0
+        while (reader.hasNext()){
+            if(reader.goForwardTo("H <-- E" , "H --> E", matchPosition = MatchPosition.AFTER)){
+               foundCnt++
+            }
+            else{
+                break
+            }
+        }
+
+        println(cnt)
+        foundCnt shouldBe cnt // 392964
+    }
 
 
 }

@@ -76,13 +76,13 @@ interface HistoryBufferedReader {
 
 
     fun readTo(vararg targets: Char,
-                    matchPosition: MatchPosition = MatchPosition.BEFORE,
+                    matchPosition: MatchPosition = MatchPosition.AFTER,
                     resetOnFail: Boolean = false,
                     nullIfNotFound: Boolean = false,
                     readLimit: Int = 0): String?
 
     fun readTo(vararg targets: String,
-               matchPosition: MatchPosition = MatchPosition.BEFORE,
+               matchPosition: MatchPosition = MatchPosition.AFTER,
                resetOnFail: Boolean = false,
                nullIfNotFound: Boolean = false,
                readLimit: Int = 0): String?

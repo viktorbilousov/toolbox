@@ -813,7 +813,7 @@ open class DoubleBufferedReader(
                 }
 
                 if (foundPosition < pos) {
-                    historyRelativePosition = pos + foundPosition - half
+                    historyRelativePosition = pos - foundPosition
                 } else {
                     pos = foundPosition
                     historyRelativePosition = 0
