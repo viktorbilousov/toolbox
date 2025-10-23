@@ -6,11 +6,11 @@ import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
-import org.vib.toolbox.getFiles
-import org.vib.toolbox.reader.DoubleBufferedReader
-import org.vib.toolbox.reader.HistoryBufferedReader.MatchPosition
-import org.vib.toolbox.reader.HistoryBufferedReader.ReadLimit
+import org.vib.toolbox.reader.HistoryBufferedReader
+import org.vib.toolbox.reader.MatchPosition
+import org.vib.toolbox.reader.IHistoryReader.ReadLimit
 import org.vib.toolbox.reader.readChar
+import org.vib.toolbox.reader.readToLineBreak
 import java.io.File
 import java.io.IOException
 import java.io.StringReader
@@ -21,7 +21,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should read characters forward correctly`() {
         val text = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 10)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 10)
 
         val result = buildString {
             var ch: Int
@@ -36,7 +36,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should read all characters forward correctly`() {
         val text = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 10)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 10)
         val result = reader.readText()
         assertEquals(text, result)
     }
@@ -64,7 +64,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should go back inside same buffer`() {
         val text = "ABCDE"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 6)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 6)
 
         val first = reader.read().toChar() // 'A'
         val second = reader.read().toChar() // 'B'
@@ -82,7 +82,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should go back across buffer boundary`() {
         val text = "ABCDEFGHIJ" // 10 chars
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 6) // two halves = 3 chars each
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 6) // two halves = 3 chars each
 
         val readAll = buildString {
             repeat(6) { append(reader.read().toChar()) } // fills two buffers
@@ -101,7 +101,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should return false when going back beyond available history`() {
         val text = "ABC"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 6)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 6)
 
         reader.read()
         reader.read()
@@ -116,7 +116,7 @@ class DoubleBufferedReaderRC2Test {
 
     @Test
     fun `should handle empty input`() {
-        val reader = DoubleBufferedReader(StringReader(""), bufferSize = 20)
+        val reader = HistoryBufferedReader(StringReader(""), bufferSize = 20)
         assertEquals(-1, reader.read())
         assertEquals(false, reader.goBack())
     }
@@ -125,7 +125,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should go back to target and stop before match`() {
         val text = "abcdef123ghi"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 16)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 16)
 
         // Move to the end
         while (reader.read() != -1);
@@ -141,7 +141,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should go back to target and position after match`() {
         val text = "abcdef123ghi"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 16)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 16)
 
         while (reader.read() != -1);
 
@@ -156,7 +156,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should not move when target not found and resetOnFail true`() {
         val text = "abcdef"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 16)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 16)
 
         while (reader.read() != -1);
 
@@ -172,7 +172,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should stop at first matching target among many`() {
         val text = "abcxxxyyyzzz"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 16)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 16)
 
         while (reader.read() != -1);
 
@@ -187,7 +187,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should return false when nothing matches`() {
         val text = "abcdef"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 12)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 12)
         while (reader.read() != -1);
         val found = reader.goBackTo("xyz")
         assertFalse(found)
@@ -196,7 +196,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `goBackTo should not cross the limit`() {
         val text = "9876|543210"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 20)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 20)
         reader.readText()
         val found5 = reader.goBackTo("|", limit = 5)
         val found6 = reader.goBackTo("|", limit = 6)
@@ -207,7 +207,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should find with limit`() {
         val text = "9876|543210"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 20)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 20)
         assertEquals(reader.readText(), "9876|543210")
         val found = reader.goBackTo("|", limit = 20)
         assertTrue(found)
@@ -216,7 +216,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should peek current`() {
         val text = "9876|543210"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 20)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 20)
         while (reader.readChar() != '|') {
         }
         println(reader.peekPrevious())
@@ -229,7 +229,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should peek previous`() {
         val text = "9876|543210"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 20)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 20)
         while (reader.readChar() != '|') {
         }
         assertEquals(reader.peekPrevious(), '6')
@@ -238,7 +238,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should peek next`() {
         val text = "9876|543210"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 20)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 20)
         while (reader.readChar() != '|') {
         }
         assertEquals(reader.peekNext(), '5')
@@ -247,7 +247,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should peek next equals to read`() {
         val text = "9876|543210"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 20)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 20)
         while (reader.readChar() != '|') {
         }
         assertEquals(reader.peekNext(), '5')
@@ -257,7 +257,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should be able to peek current on any position`() {
         val text = "9876|543210"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 10)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 10)
         val sb = StringBuilder()
         for ((index, ch) in text.withIndex()) {
             val ch = reader.readChar() ?: break
@@ -271,7 +271,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should be able to peek previous on any position except first`() {
         val text = "9876|543210"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 10)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 10)
         val sb = StringBuilder()
         for ((index, ch) in text.withIndex()) {
             val ch = reader.readChar() ?: break
@@ -290,7 +290,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `should be able to peek next on any position except last`() {
         val text = "9876|543210"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 20)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 20)
         val sb = StringBuilder()
         for ((index, ch) in text.withIndex()) {
             val ch = reader.readChar() ?: break
@@ -310,7 +310,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `hasCurrent should be false before read`() {
         val text = "9876|543210"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 10)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 10)
         reader.hasCurrent() shouldBe false
         reader.read()
         reader.hasCurrent() shouldBe true
@@ -322,7 +322,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `hasPrev should be false before second read`() {
         val text = "9876|543210"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 10)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 10)
         reader.hasPrevious() shouldBe false
 
         reader.read()
@@ -340,7 +340,7 @@ class DoubleBufferedReaderRC2Test {
     @Test
     fun `hasNext should be false at the end`() {
         val text = "9876|543210"
-        val reader = DoubleBufferedReader(StringReader(text), bufferSize = 10)
+        val reader = HistoryBufferedReader(StringReader(text), bufferSize = 10)
         reader.hasNext() shouldBe true
 
         reader.read()
@@ -351,7 +351,7 @@ class DoubleBufferedReaderRC2Test {
         reader.hasNext() shouldBe false
     }
 
-    private fun readerOf(text: String, capacity: Int = 8192 * 2) = DoubleBufferedReader(text.reader(), capacity)
+    private fun readerOf(text: String, capacity: Int = 8192 * 2) = HistoryBufferedReader(text.reader(), capacity)
 
     @Test
     fun `should stop before target when matchPosition BEFORE`() {
@@ -537,7 +537,7 @@ class DoubleBufferedReaderRC2Test {
 
     @Test
     fun `markPosition should throws exception if cannot reset`() {
-        val reader = DoubleBufferedReader("1234567890".reader(), 4)
+        val reader = HistoryBufferedReader("1234567890".reader(), 4)
         val pos = reader.markPosition()
         repeat(5) {
             reader.read()
@@ -548,7 +548,7 @@ class DoubleBufferedReaderRC2Test {
 
     @Test
     fun `markPosition should not throws exception if reset from last char`() {
-        val reader = DoubleBufferedReader("1234567890".reader(), 4)
+        val reader = HistoryBufferedReader("1234567890".reader(), 4)
         val pos = reader.markPosition()
         repeat(4) {
             reader.read()
@@ -619,6 +619,57 @@ class DoubleBufferedReaderRC2Test {
         }
          reader.getFromFirstReadToCurrent() shouldBe expected.last()
 
+    }
+
+
+    @Test
+    fun `getFromFirstReadToCurrent_go_back len is odd`() {
+        val text = "1234|1234|5678|1234|"
+        val reader = readerOf(text, text.length);
+        reader.readText()
+
+
+
+        for ((index, ch) in text.withIndex()) {
+            val t = reader.getFromFirstReadToCurrent()
+            println(t)
+            text.substring(0, text.length-index) shouldBe t
+            reader.goBack()
+        }
+        reader.getFromFirstReadToCurrent() shouldBe ""
+    }
+
+    @Test
+    fun `getFromFirstReadToCurrent_go_back len is not odd`() {
+        val text = "1234|1234|5678|1234"
+        val reader = readerOf(text, text.length);
+        reader.readText()
+
+
+
+        for ((index, ch) in text.withIndex()) {
+            val t = reader.getFromFirstReadToCurrent()
+            println(t)
+            text.substring(0, text.length-index) shouldBe t
+            reader.goBack()
+        }
+        reader.getFromFirstReadToCurrent() shouldBe ""
+    }
+
+
+    @Test
+    fun `getFromFirstReadToCurrent_go_back_with_full_buffer`() {
+        val text = "1234|1234|1234|1234"
+        val reader = readerOf("1234|1234|1234|1234");
+        reader.readText()
+
+        for ((index, ch) in text.withIndex()) {
+            val t = reader.getFromFirstReadToCurrent()
+            println(t)
+            text.substring(0, text.length-index) shouldBe t
+            reader.goBack()
+        }
+        reader.getFromFirstReadToCurrent() shouldBe ""
     }
 
 
@@ -1306,7 +1357,7 @@ class DoubleBufferedReaderRC2Test {
         val lines  =  file.readText().split("\n")
         val cnt = lines.count { it.contains("H <-- E") || it.contains("H --> E") }
 
-        val reader = DoubleBufferedReader(file.reader())
+        val reader = HistoryBufferedReader(file.reader())
         var foundCnt = 0
         while (reader.hasNext()){
             if(reader.goForwardTo("H <-- E" , "H --> E", matchPosition = MatchPosition.AFTER)){
@@ -1320,6 +1371,7 @@ class DoubleBufferedReaderRC2Test {
         println(cnt)
         foundCnt shouldBe cnt // 392964
     }
+
 
 
 }
