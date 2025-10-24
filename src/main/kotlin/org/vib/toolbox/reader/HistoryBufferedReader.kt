@@ -834,7 +834,7 @@ open class HistoryBufferedReader(
                                 stringBuffer.append(
                                     historyBuffer,
                                     startedPosition + half,
-                                    historyBuffer.size - startedPosition
+                                    abs(startedPosition)
                                 )
                                 stringBuffer.append(headBuffer, 0, foundPosition)
                                 str = stringBuffer.toString()

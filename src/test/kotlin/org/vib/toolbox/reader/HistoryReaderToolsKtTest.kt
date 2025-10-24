@@ -48,6 +48,17 @@ class HistoryReaderToolsKtTest {
     }
 
     @Test
+    fun `skipSpaces case 5`() {
+        val string = "< B [1] >";
+        val reader = readerOf(string)
+        reader.goForward(4)
+        reader.getFromFirstReadToCurrent() shouldBe "< B "
+        reader.skipSpaces(true)
+        reader.getFromFirstReadToCurrent() shouldBe "< B ["
+    }
+
+
+    @Test
     fun goBackToLineBegin() {
         val str = "aaaa\nbbbb\ncccc\ndddd"
         val reader = readerOf(str)

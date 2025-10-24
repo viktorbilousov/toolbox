@@ -16,20 +16,37 @@ fun IHistoryReader.readToLineBreak(matchPosition: MatchPosition = MatchPosition.
     }
 }
 
-fun HistoryReader.skipSpaces() : HistoryReader{
+fun HistoryReader.skipSpaces(readFirstAfterSpace: Boolean = false) : Int{
     val space = ' '
 
-
-
+    val currentIsSpace = peekCurrent() == space
+    var cnt = 0
+    var spaceDetected = false;
     var next : Char?
-    do {
-        next = readChar() ?: return this
+    while (true){
+        next = readChar() ?: return cnt
+
+        if(next == space){
+            cnt++
+            spaceDetected = true
+        }
+        else{
+            if(cnt == 0){
+                if(!currentIsSpace) {
+                    goBack()
+                }
+                else if(!readFirstAfterSpace){
+                    goBack()
+                }
+            }
+            if(cnt > 0 && !readFirstAfterSpace) {
+                goBack()
+            }
+            break
+        }
     }
-    while (next == space)
 
-    goBack()
-
-    return this
+    return cnt
 }
 
 fun IHistoryReader.goBackToLineBegin(): Boolean {
