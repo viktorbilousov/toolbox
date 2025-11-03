@@ -988,6 +988,16 @@ open class HistoryBufferedReader(
 
     }
 
+    override fun readTo(
+        vararg targets: String,
+        matchPosition: MatchPosition,
+        resetOnFail: Boolean,
+        nullIfNotFound: Boolean,
+        readLimit: IHistoryReader.ReadLimit
+    ): String? {
+        val limit = calculateEndBufferReadLimit(readLimit) ?: return null
+        return readTo(targets = targets, matchPosition, resetOnFail, nullIfNotFound, limit)
+    }
 
     override fun readTo(
         vararg targets: String,

@@ -81,6 +81,13 @@ interface IHistoryReader {
                nullIfNotFound: Boolean = false,
                readLimit: Int = 0): String?
 
+    fun readTo(vararg targets: String,
+               matchPosition: MatchPosition = MatchPosition.AFTER,
+               resetOnFail: Boolean = false,
+               nullIfNotFound: Boolean = false,
+               readLimit: ReadLimit = ReadLimit.UNLIMITED ): String?
+
+
 
     fun getFromFirstReadToCurrent(): String
     fun readFromCurrentToEnd(): String
