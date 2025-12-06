@@ -3,11 +3,7 @@ package org.vib.toolbox
 import org.junit.jupiter.api.BeforeAll
 import org.vib.toolbox.Utils.files
 import org.vib.toolbox.Utils.printInfo
-import org.vib.toolbox.reader.HistoryBufferedReader
-import org.vib.toolbox.reader.IHistoryReader
-import org.vib.toolbox.reader.ReaderWithMemory
-import org.vib.toolbox.reader.StrPattern
-import org.vib.toolbox.reader.TextReaderWithMemory
+import org.vib.toolbox.reader.*
 import java.io.InputStreamReader
 import java.io.Reader
 import kotlin.math.min
@@ -23,7 +19,7 @@ class ReaderTest {
 
 
         const val attempts = 2
-        val lines by lazy { files.first().bufferedReader().readLines().count() };
+        val lines : Int by lazy { files.first().bufferedReader().readLines().count() };
 
         @BeforeAll
         @JvmStatic
@@ -291,14 +287,14 @@ class ReaderTest {
     fun doubleBufferedReaderRc2GoForwardToStr(){
 
         doubleBufferedReaderText("GO FORWARD TO string(2) DoubleBufferedReaderRC2"){
-            goForwardTo(" >", matchPosition = IHistoryReader.MatchPosition.AFTER)
+            goForwardTo(" >", matchPosition = MatchPosition.AFTER)
         }
         doubleBufferedReaderText("GO FORWARD TO string(4) DoubleBufferedReaderRC2"){
-            goForwardTo("   >", matchPosition = IHistoryReader.MatchPosition.AFTER)
+            goForwardTo("   >", matchPosition = MatchPosition.AFTER)
         }
 
         doubleBufferedReaderText("GO FORWARD TO string(2, 4) DoubleBufferedReaderRC2"){
-            goForwardTo(" \n", " >", matchPosition = IHistoryReader.MatchPosition.AFTER)
+            goForwardTo(" \n", " >", matchPosition = MatchPosition.AFTER)
         }
 
     }
@@ -313,14 +309,14 @@ class ReaderTest {
         }
 
         doubleBufferedReaderText("GO FORWARD TO char(1) DoubleBufferedReaderRC2"){
-            goForwardTo('\n', matchPosition = IHistoryReader.MatchPosition.AFTER)
+            goForwardTo('\n', matchPosition = MatchPosition.AFTER)
         }
 
         doubleBufferedReaderText("GO FORWARD TO char(4) DoubleBufferedReaderRC2"){
-            goForwardTo('\r', '\t', '%', '\n', matchPosition = IHistoryReader.MatchPosition.AFTER)
+            goForwardTo('\r', '\t', '%', '\n', matchPosition = MatchPosition.AFTER)
         }
         doubleBufferedReaderText("GO FORWARD TO char(4) LIMITED DoubleBufferedReaderRC2"){
-            goForwardTo('\n', matchPosition = IHistoryReader.MatchPosition.AFTER, readLimit = IHistoryReader.ReadLimit.END_OF_BUFFER)
+            goForwardTo('\n', matchPosition = MatchPosition.AFTER, readLimit = IHistoryReader.ReadLimit.END_OF_BUFFER)
         }
 
     }
@@ -330,7 +326,7 @@ class ReaderTest {
     fun doubleBufferedReaderRc2ReadToChar(){
         var text = ""
         doubleBufferedReaderText("READ TO char DoubleBufferedReaderRC2"){
-            text = readTo('\n', matchPosition = IHistoryReader.MatchPosition.AFTER)!!
+            text = readTo('\n', matchPosition = MatchPosition.AFTER)!!
         }
     }
 
@@ -347,15 +343,15 @@ class ReaderTest {
 
         val pattern = StrPattern(" >")
         doubleBufferedReaderText("READ TO 1 String(1) DoubleBufferedReaderRC2"){
-            text = readTo(" >", matchPosition = IHistoryReader.MatchPosition.AFTER)!!
+            text = readTo(" >", matchPosition = MatchPosition.AFTER)!!
         }
 
         doubleBufferedReaderText("READ TO 1 Pattern String(1) DoubleBufferedReaderRC2"){
-            text = readTo(pattern, matchPosition = IHistoryReader.MatchPosition.AFTER)!!
+            text = readTo(pattern, matchPosition = MatchPosition.AFTER)!!
         }
 
         doubleBufferedReaderText("READ TO String(1) DoubleBufferedReaderRC2"){
-            text = readTo(" >", matchPosition = IHistoryReader.MatchPosition.AFTER)!!
+            text = readTo(" >", matchPosition = MatchPosition.AFTER)!!
         }
 //
 //        doubleBufferedReaderText("READ TO String(2) DoubleBufferedReaderRC2"){
@@ -386,15 +382,41 @@ class ReaderTest {
 //        }
 
         doubleBufferedReaderText("READ TO char(1) DoubleBufferedReaderRC2"){
-            readTo('\n', matchPosition = IHistoryReader.MatchPosition.AFTER)
+            readTo('\n', matchPosition = MatchPosition.AFTER)
         }
         doubleBufferedReaderText("READ TO char(3) DoubleBufferedReaderRC2"){
-            readTo('a','b','\n', matchPosition = IHistoryReader.MatchPosition.AFTER)
+            readTo('a','b','\n', matchPosition = MatchPosition.AFTER)
         }
         doubleBufferedReaderText("READ TO Str DoubleBufferedReaderRC2"){
-            readTo(" >", matchPosition = IHistoryReader.MatchPosition.AFTER)
+            readTo(" >", matchPosition = MatchPosition.AFTER)
         }
     //        doubleBufferedReaderRc2GoForwardToChar1()
+
+    }
+
+
+    @Test
+    fun readToEndLineLimitedTest(){
+        readToEndLineLimited()
+        readToEndLineLimitedWithGetRange()
+    }
+
+    fun readToEndLineLimited(){
+
+        doubleBufferedReaderText("READ TO LINE END"){
+            readTo("\n", matchPosition = MatchPosition.AFTER, readLimit = IHistoryReader.ReadLimit.UNLIMITED)
+        }
+
+    }
+
+
+    fun readToEndLineLimitedWithGetRange(){
+        doubleBufferedReaderText("READ TO LINE END"){
+            val from = markPosition()
+            goForwardTo("\n", matchPosition = MatchPosition.AFTER, readLimit = IHistoryReader.ReadLimit.BUFFER_SIZE)
+            val to = markPosition()
+            getTextFromRange(from, to)
+        }
 
     }
 

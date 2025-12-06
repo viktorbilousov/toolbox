@@ -16,9 +16,16 @@ publishing {
 }
 
 sourceSets {
+
+    val main by getting
+    val test by getting
+
     val benchmark by creating {
         kotlin.srcDir("src/benchmark/kotlin")
         resources.srcDir("src/benchmark/resources")
+
+        compileClasspath += main.output + test.output
+        runtimeClasspath += main.output + test.output
     }
 }
 
@@ -38,7 +45,7 @@ tasks.register<Test>("benchmark") {
 
     testClassesDirs = sourceSets["benchmark"].output.classesDirs
     classpath = sourceSets["benchmark"].runtimeClasspath
-    useJUnitPlatform() // <- very important
+    useJUnitPlatform()
 }
 
 
@@ -60,6 +67,7 @@ dependencies {
     testImplementation("io.kotest:kotest-property-jvm:5.8.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.1")
+    implementation(kotlin("stdlib-jdk8"))
 }
 
 tasks.test {

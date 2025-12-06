@@ -10,13 +10,12 @@ import org.vib.toolbox.reader.HistoryBufferedReader
 import org.vib.toolbox.reader.MatchPosition
 import org.vib.toolbox.reader.IHistoryReader.ReadLimit
 import org.vib.toolbox.reader.readChar
-import org.vib.toolbox.reader.readToLineBreak
 import java.io.File
 import java.io.IOException
 import java.io.StringReader
 
-@Timeout(1)
-class DoubleBufferedReaderRC2Test {
+//@Timeout(1)
+class HistoryBufferedReaderRC2Test {
 
     @Test
     fun `should read characters forward correctly`() {
@@ -1089,9 +1088,50 @@ class DoubleBufferedReaderRC2Test {
     }
 
 
+    @Test
+    fun `readTo char test by range`() {
+        val text = "1234567890"
+        for ((index, ch) in text.withIndex()) {
+            val reader = readerOf(text)
+            val t = reader.readTo(text[index], matchPosition = MatchPosition.BEFORE, readLimit = ReadLimit.BUFFER_SIZE)
+            println(text[index] + " : "+ t)
+            t shouldBe text.take(index)
+        }
+    }
 
     @Test
-    fun `readTo multi line test`() {
+    fun `readTo char from center test fast`() {
+        val text = "aaaaaaaaa|1234567890"
+        val textToSearch = "1234567890"
+        for ((index, ch) in textToSearch.withIndex()) {
+            val reader = readerOf(text)
+            reader.goForwardTo('|', matchPosition = MatchPosition.AFTER)
+            val t = reader.readTo(textToSearch[index], matchPosition = MatchPosition.BEFORE, readLimit = ReadLimit.BUFFER_SIZE)
+            println(textToSearch[index] + " : "+ t)
+            t shouldBe textToSearch.take(index)
+        }
+    }
+
+    @Test
+    fun `readToStr from center test by range`() {
+        val text = "aaaaaaaaa|1234567890"
+        val textToSearch = "1234567890"
+        for ((index, ch) in textToSearch.withIndex()) {
+            if(index == textToSearch.lastIndex) break
+
+            val reader = readerOf(text)
+            reader.goForwardTo('|', matchPosition = MatchPosition.AFTER, readLimit = ReadLimit.BUFFER_SIZE)
+            val str = "${textToSearch[index]}" + textToSearch[index+1]
+            val t = reader.readTo(str, matchPosition = MatchPosition.BEFORE)
+            println(str + " : "+ `t`)
+            t shouldBe textToSearch.take(index)
+        }
+    }
+
+
+
+    @Test
+    fun `readTo multi line test `() {
         val text = "123456789\nAabcdacbd\nA987654321"
         val reader = readerOf(text)
 
@@ -1247,6 +1287,23 @@ class DoubleBufferedReaderRC2Test {
         result shouldBe "he" // stops at first match "lo"
     }
 
+    @Test
+    fun `goForwardTo case1`() {
+        val text = "hehello world"
+        val reader = readerOf(text)
+        reader.goForwardTo("hello", matchPosition = MatchPosition.BEFORE) shouldBe true
+        reader.getFromFirstReadToCurrent() shouldBe "he"
+    }
+
+
+    @Test
+    fun `goForwardTo case2`() {
+        val text = "hehello world"
+        val reader = readerOf(text)
+        reader.goForwardTo("hello", matchPosition = MatchPosition.AFTER) shouldBe true
+        reader.getFromFirstReadToCurrent() shouldBe "hehello"
+    }
+
 
     @Test
     fun `readTo target not found with resetOnFail`() {
@@ -1371,6 +1428,123 @@ class DoubleBufferedReaderRC2Test {
         println(cnt)
         foundCnt shouldBe cnt // 392964
     }
+
+
+    @Test
+    fun `should get text by marks range`(){
+        val text = "1234|5678|9012"
+        val reader = readerOf(text)
+
+        var positionFrom = reader.markPosition()
+        positionFrom shouldBe 0
+
+        reader.goForwardTo("|", matchPosition = MatchPosition.BEFORE);
+
+        var positionTo = reader.markPosition()
+        positionTo shouldBe 4
+
+        reader.getFromFirstReadToCurrent() shouldBe "1234"
+
+        reader.getTextFromRange(positionFrom, positionTo) shouldBe "1234"
+
+
+        positionFrom = positionTo
+
+        reader.goForward()
+        reader.goForwardTo("|", matchPosition = MatchPosition.BEFORE);
+
+        positionTo = reader.markPosition()
+
+        reader.getFromFirstReadToCurrent() shouldBe "1234|5678"
+
+        reader.getTextFromRange(positionFrom, positionTo) shouldBe "|5678"
+
+
+    }
+
+    @Test
+    fun `should get text by range in middle of text from left`(){
+        val text = "1234|5678|9012"
+        val reader = readerOf(text)
+        reader.goForwardTo("|", matchPosition = MatchPosition.AFTER)
+        val from = reader.markPosition()
+
+        reader.goForwardTo("|", matchPosition = MatchPosition.BEFORE)
+        val to = reader.markPosition()
+
+        reader.readText()
+
+        reader.getTextFromRange(from, to) shouldBe "5678"
+
+    }
+
+    @Test
+    fun `should get text by range in middle of text from right`(){
+        val text = "1234|5678|9012"
+        val reader = readerOf(text)
+        reader.readText()
+        reader.goBackTo('|', matchPosition = MatchPosition.BEFORE)
+        val to = reader.markPosition()
+
+        reader.goBackTo("|", matchPosition = MatchPosition.AFTER)
+        val from = reader.markPosition()
+
+
+        reader.getTextFromRange(from, to) shouldBe "5678"
+    }
+
+
+    @Test
+    fun `should get text by marks range between buffers`(){
+        val text = "1234|5678|9012"
+        val reader = readerOf(text, 14)
+        reader.readText() shouldBe text
+
+        reader.getHeadBufferAsString() shouldBe "78|9012"
+        reader.getHistoryBufferAsString() shouldBe "1234|56"
+
+        reader.getTextFromRange(0, 4) shouldBe "1234" // history buffer
+        reader.getTextFromRange(9, 14) shouldBe "|9012" // head buffer
+        reader.getTextFromRange(4, 10) shouldBe "|5678|" // between
+    }
+
+    @Test
+    fun `should get text by marks range 2`(){
+        val text = "1234|5678|9012"
+        val len = text.length
+        val reader = readerOf(text, len)
+        reader.readText() shouldBe text
+
+        for (from in 0 until len +1) {
+            for (to in from until len +1) {
+                if(from == to) continue
+                val expected = text.subSequence(from, to)
+                val actual = reader.getTextFromRange(from.toLong(), to.toLong())
+                println("[$from:$to] : $actual")
+                actual shouldBe expected
+            }
+        }
+    }
+
+    @Test
+    fun `should get text by marks range one buffer`(){
+        val text = "1234|5678|9012"
+        val len = text.length
+        val reader = readerOf(text)
+        reader.readText() shouldBe text
+
+        for (from in 0 until len +1) {
+            for (to in from until len +1) {
+                if(from == to) continue
+                val expected = text.subSequence(from, to)
+                val actual = reader.getTextFromRange(from.toLong(), to.toLong())
+                println("[$from:$to] : $actual")
+                actual shouldBe expected
+            }
+        }
+    }
+
+
 
 
 

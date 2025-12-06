@@ -103,7 +103,7 @@ object TablePrinter {
     {
         if(rows.isEmpty()) return ""
 
-        val rowsCols = rows.map { extractColumns(it).map { it.toString() } }
+        val rowsCols = rows.map { extractColumns(it).map { it?.toString() ?: "" } }
         val columnsCnt = rowsCols.map { it.size }.maxBy { it }
         val maxColLen = mutableMapOf<Int, Int>()
 
@@ -137,7 +137,7 @@ object TablePrinter {
                                   marginSpaces: Int = 5,
                                   extractColumns: (T) -> List<Any?> = { listOf(it as Any?) }
     ): String {
-        val rowsCols = rows.map { extractColumns(it).map { it.toString() } }
+        val rowsCols = rows.map { extractColumns(it).map { it?.toString() ?: "" } }
         val columnsCnt = rowsCols.map { it.size }.maxBy { it }
 
         val maxColLen = mutableMapOf<Int, Int>()

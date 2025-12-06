@@ -40,6 +40,8 @@ val Rectangle.center get() = Point(this.x + this.width/2, this.y + this.height/2
 
 //#################### String ####################
 
+internal val EMPTY_STRING = ""
+
 
 fun String.splitAndTrim(vararg delimiters : String) : List<String> {
     return this.split(*delimiters).map { it.trim() }
@@ -118,7 +120,7 @@ fun sleep(mils: Number){
 }
 
 
-fun waitFor(limitSec: Duration = 10.seconds, sleepMils: Int = 100, condition: () -> Boolean) : Boolean {
+fun waitFor(limitSec: Duration = 10.seconds, sleepMils: Int = 100, condition: () -> Boolean = {false}) : Boolean {
     val start = Instant.now()
     while (true){
         if(limitSec.inWholeMilliseconds > 0 && Instant.now().toEpochMilli() - start.toEpochMilli() > limitSec.inWholeMilliseconds) return false
@@ -150,8 +152,8 @@ val ZoneId.Default : ZoneId get() = ZoneId.systemDefault()
 infix fun Class<*>.instanceOf(clazz: Class<*>) = clazz.isAssignableFrom(this)
 infix fun Class<*>.isNotInstanceOf(clazz: Class<*>) = !clazz.isAssignableFrom(this)
 
-infix fun Any.instanceOf(clazz: Class<*>) = clazz.isAssignableFrom(this::class.java)
-infix fun Any.isNotInstanceOf(clazz: Class<*>) = !clazz.isAssignableFrom(this::class.java)
+infix fun Any.instanceOf(clazz: Class<*>) = clazz.isAssignableFrom(this::class.java.javaPrimitiveTypeToKotlin())
+infix fun Any.isNotInstanceOf(clazz: Class<*>) = !clazz.isAssignableFrom(this::class.java.javaPrimitiveTypeToKotlin())
 
 @Suppress("UNCHECKED_CAST")
 fun<T: Any> KClass<T>.castObj(obj: Any?): T? {

@@ -39,6 +39,7 @@ interface IHistoryReader {
         companion object{
             val UNLIMITED = ReadLimit(0)
             val END_OF_BUFFER = ReadLimit(-1)
+            val BUFFER_SIZE = ReadLimit(-2)
             fun LIMITED(size: Int) = ReadLimit(size)
         }
     }
@@ -73,13 +74,19 @@ interface IHistoryReader {
                     matchPosition: MatchPosition = MatchPosition.AFTER,
                     resetOnFail: Boolean = false,
                     nullIfNotFound: Boolean = false,
-                    readLimit: Int = 0): String?
+                    readLimit: Int): String?
+
+    fun readTo(vararg targets: Char,
+               matchPosition: MatchPosition = MatchPosition.AFTER,
+               resetOnFail: Boolean = false,
+               nullIfNotFound: Boolean = false,
+               readLimit: ReadLimit = ReadLimit.UNLIMITED): String?
 
     fun readTo(vararg targets: String,
                matchPosition: MatchPosition = MatchPosition.AFTER,
                resetOnFail: Boolean = false,
                nullIfNotFound: Boolean = false,
-               readLimit: Int = 0): String?
+               readLimit: Int): String?
 
     fun readTo(vararg targets: String,
                matchPosition: MatchPosition = MatchPosition.AFTER,
@@ -87,7 +94,20 @@ interface IHistoryReader {
                nullIfNotFound: Boolean = false,
                readLimit: ReadLimit = ReadLimit.UNLIMITED ): String?
 
-
+    fun readTo(
+        vararg targets: StrPattern,
+        matchPosition: MatchPosition = MatchPosition.AFTER,
+        resetOnFail: Boolean = false,
+        nullIfNotFound: Boolean = false,
+        readLimit: Int
+    )  : String?
+    fun readTo(
+        vararg targets: StrPattern,
+        matchPosition: MatchPosition = MatchPosition.AFTER,
+        resetOnFail: Boolean = false,
+        nullIfNotFound: Boolean = false,
+        readLimit: ReadLimit = ReadLimit.UNLIMITED
+    ): String?
 
     fun getFromFirstReadToCurrent(): String
     fun readFromCurrentToEnd(): String

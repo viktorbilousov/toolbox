@@ -22,7 +22,7 @@ class CollectionsTest {
 
     @OptIn(ExperimentalTime::class)
     @Test
-    fun LinkedArray(){
+    fun LinkedArrayTest(){
         var commonTime = Duration.ZERO;
         val array = LinkedArray<Int>(1000)
         for (file in Utils.files) {

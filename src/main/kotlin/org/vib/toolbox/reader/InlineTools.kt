@@ -6,7 +6,7 @@ import java.io.Reader
 
 
 fun Reader.readChar(): Char? {
-    val arr = CharArray(1)
+    val arr = CharArray(1) // synchronized!!
     val code = this.read(arr)
     if(code == -1) return null
     return arr[0]

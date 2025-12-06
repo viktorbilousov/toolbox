@@ -1,4 +1,5 @@
 package org.vib.toolbox.reader
+import org.vib.toolbox.EMPTY_STRING
 import java.io.IOException
 import java.io.Reader
 import java.util.*
@@ -6,7 +7,7 @@ import kotlin.math.abs
 
 open class HistoryBufferedReader(
     private val input: Reader,
-   bufferSize: Int = 8192*2
+    bufferSize: Int = 8192*2
 ) : HistoryReader(), IHistoryReader {
 
     private val bufferSize: Int = bufferSize + bufferSize%2
@@ -25,7 +26,6 @@ open class HistoryBufferedReader(
     private var isHistoryBufferEmpty = true
     private var bufferCounter = 0;
     private var isOpen = true
-    private var lock = Any()
 
 
     companion object {
@@ -91,11 +91,19 @@ open class HistoryBufferedReader(
         }
     }
 
+    internal fun getHeadBufferAsString(): String {
+        return String(headBuffer)
+    }
+
+    internal fun getHistoryBufferAsString(): String {
+        return String(historyBuffer)
+    }
+
     override fun getFromFirstReadToCurrent(): String {
-        if (limit == 0) return "";
+        if (limit == 0) return EMPTY_STRING
         val absoluteposition = pos - historyRelativePosition
         if (absoluteposition < 0) {
-            if (isHistoryBufferEmpty) return ""
+            if (isHistoryBufferEmpty) return EMPTY_STRING
             return String(historyBuffer, 0, absoluteposition + half)
         } else {
             if (isHistoryBufferEmpty) {
@@ -111,7 +119,7 @@ open class HistoryBufferedReader(
 
 
     override fun readFromCurrentToEnd(): String {
-        if (historyRelativePosition == 0) return ""
+        if (historyRelativePosition == 0) return EMPTY_STRING
         val absoluteposition = pos - historyRelativePosition
         if (absoluteposition < 0) {
             if (isHistoryBufferEmpty) return String(historyBuffer, 0, pos + 1)
@@ -188,34 +196,6 @@ open class HistoryBufferedReader(
         }
     }
 
-    override fun goBackAndGet(): Char? {
-        if (!goBack()) return null
-        if (!hasCurrent()) return null
-        return peekCurrent()
-    }
-
-    override fun goBack(steps: Int): Boolean {
-        for (i in 0 until steps) {
-            if (!goBack()) return false
-        }
-        return true
-    }
-
-    override fun peekPrevious(): Char? {
-        if (!hasPrevious()) return null
-        goBack()
-        val c = peekCurrent()
-        goForward()
-        return c
-    }
-
-    override fun goForward(steps: Int): Boolean {
-        for (i in 0 until steps) {
-            if (!goForward()) return false
-        }
-        return true
-    }
-
     override fun goForward(): Boolean {
         if (historyRelativePosition != 0) {
             historyRelativePosition--;
@@ -223,18 +203,6 @@ open class HistoryBufferedReader(
         } else {
             return read() != -1
         }
-    }
-
-    override fun goBackAndGet(steps: Int): Char? {
-        if (!goBack(steps - 1)) return null
-        return goBackAndGet()
-    }
-
-    override fun peekNext(): Char? {
-        if (!goForward()) return null
-        val c = peekCurrent()
-        goBack()
-        return c
     }
 
     override fun hasNext(): Boolean {
@@ -412,7 +380,7 @@ open class HistoryBufferedReader(
         return true
     }
 
-    private fun calculateEndBufferReadLimit(readLimit: IHistoryReader.ReadLimit): Int? {
+    final override fun calculateEndBufferReadLimit(readLimit: IHistoryReader.ReadLimit): Int? {
         if (readLimit == IHistoryReader.ReadLimit.END_OF_BUFFER) {
             if (limit == 0) {
                 if (!hasNext()) return null
@@ -429,87 +397,14 @@ open class HistoryBufferedReader(
             } else {
                 return half - absolutePosition
             }
-        } else {
+        }
+        else if(readLimit == IHistoryReader.ReadLimit.BUFFER_SIZE){
+            return bufferSize - 1
+        }
+        else {
             return readLimit.size
         }
     }
-
-    override fun goForwardTo(
-        vararg targets: String,
-        matchPosition: MatchPosition,
-        resetOnFail: Boolean,
-        readLimit: IHistoryReader.ReadLimit
-    ): Boolean {
-        val limit = calculateEndBufferReadLimit(readLimit) ?: return false
-        return goForwardTo(targets = targets, matchPosition, resetOnFail, limit)
-    }
-
-//    override fun goForwardTo(
-//        vararg targets: String,
-//        matchPosition: MatchPosition,
-//        resetOnFail: Boolean,
-//        readLimit: Int
-//    ): Boolean {
-//        val targets = targets.filter { it.isNotEmpty() }
-//        if (targets.isEmpty()) return false
-//        if(targets.all { it.length == 1 }){
-//            val arr = targets.map { it[0] }.toCharArray()
-//            return goForwardTo(targets = arr, matchPosition= matchPosition, resetOnFail = resetOnFail, readLimit = readLimit)
-//        }
-//
-//        val position = markPosition()
-//        val maxTargetLen = targets.maxOf { it.length }
-//
-//        val window = CharArray(maxTargetLen)
-//        var windowSize = 0
-//        var count = 0
-//
-//        while (readLimit == 0 || count++ < readLimit) {
-//            val ch = read()
-//            if(ch == -1) break;
-//
-//            // Add character to sliding window
-//            if (windowSize < maxTargetLen) {
-//                window[windowSize++] = ch.toChar()
-//            } else {
-//                // Shift left
-//                for (i in 0 until maxTargetLen - 1) window[i] = window[i + 1]
-//                window[maxTargetLen - 1] = ch.toChar()
-//            }
-//
-//            // Check for match
-//            for (target in targets) {
-//                if (windowSize >= target.length) {
-//                    var matched = true
-//                    for (i in target.indices) {
-//                        // Compare most recent chars
-//                        if (window[windowSize - target.length + i] != target[i]) {
-//                            matched = false
-//                            break
-//                        }
-//                    }
-//
-//                    if (matched) {
-//                        when (matchPosition) {
-//                            MatchPosition.BEFORE -> {
-//                                // Step back to just before match
-//                                repeat(target.length) { goBack() }
-//                            }
-//                            MatchPosition.AFTER -> {
-//                                // Already after match → do nothing
-//                            }
-//                        }
-//                        return true
-//                    }
-//                }
-//            }
-//        }
-//
-//        if (resetOnFail) {
-//           resetPosition(position)
-//        }
-//        return false
-//    }
 
 
     override fun goForwardTo(
@@ -559,6 +454,7 @@ open class HistoryBufferedReader(
         var index = -1;
         var foundIndex = -1;
         var maxLen = 0;
+        var before = 0
         val unlimited = readLimit == 0
 
         while (unlimited || restReadLimit > 0) {
@@ -612,8 +508,9 @@ open class HistoryBufferedReader(
                                 break
                             } else {
                                 finished = false
+//                                before = pointers[i]
                                 pointers[i] = targets[i].lps[pointers[i] - 1]
-                                if (pointers[i] == 0) break
+//                                if (pointers[i] == 0 && before == 0) break
                             }
                         }
                     }
@@ -735,7 +632,8 @@ open class HistoryBufferedReader(
     }
 
 
-    override fun readTo(
+
+    private fun readToOneByOne(
         vararg targets: Char,
         matchPosition: MatchPosition,
         resetOnFail: Boolean,
@@ -768,7 +666,7 @@ open class HistoryBufferedReader(
                     }
 
                     if (!nullIfNotFound) {
-                        return stringBuffer?.toString() ?: ""
+                        return stringBuffer?.toString() ?: EMPTY_STRING
                     } else {
                         return null
                     }
@@ -875,6 +773,26 @@ open class HistoryBufferedReader(
             }
         }
 
+    }
+
+    private fun returnByRange(  vararg targets: Char,
+                                matchPosition: MatchPosition,
+                                resetOnFail: Boolean,
+                                nullIfNotFound: Boolean,
+                                readLimit: Int): String? {
+        val before = markPosition()
+        val success = goForwardTo(targets = targets, matchPosition, resetOnFail, readLimit)
+        val after = markPosition()
+
+        if(!success){
+            if(resetOnFail){
+                resetPosition(before)
+            }
+            if(nullIfNotFound) {
+                return null
+            }
+        }
+        return getTextFromRange(before, after);
     }
 
 
@@ -988,16 +906,21 @@ open class HistoryBufferedReader(
 
     }
 
-    override fun readTo(
-        vararg targets: String,
-        matchPosition: MatchPosition,
-        resetOnFail: Boolean,
-        nullIfNotFound: Boolean,
-        readLimit: IHistoryReader.ReadLimit
-    ): String? {
-        val limit = calculateEndBufferReadLimit(readLimit) ?: return null
-        return readTo(targets = targets, matchPosition, resetOnFail, nullIfNotFound, limit)
+
+
+    private fun returnByRange(  vararg targets: StrPattern,
+                                matchPosition: MatchPosition,
+                                resetOnFail: Boolean,
+                                nullIfNotFound: Boolean,
+                                readLimit: Int): String? {
+        val before = markPosition()
+        if(!goForwardTo(targets = targets, matchPosition, resetOnFail, readLimit) && nullIfNotFound){
+            return null
+        }
+        val after = markPosition()
+        return getTextFromRange(before, after);
     }
+
 
     override fun readTo(
         vararg targets: String,
@@ -1006,18 +929,52 @@ open class HistoryBufferedReader(
         nullIfNotFound: Boolean,
         readLimit: Int
     ): String? {
-        if (targets.isEmpty()) return null
+        if (targets.isEmpty()) return if (nullIfNotFound) null else EMPTY_STRING
 
         val size = targets.size
         val pattern = arrayOfNulls<StrPattern>(size)
         for (i in 0 until size) {
             pattern[i] = StrPattern(targets[i])
         }
-        return readTo(targets = (pattern as Array<StrPattern>), matchPosition, resetOnFail, nullIfNotFound, readLimit)
+
+        return readTo(targets = pattern as Array<StrPattern>, matchPosition, resetOnFail, nullIfNotFound, readLimit)
+    }
+
+    override fun readTo(
+        vararg targets: Char,
+        matchPosition: MatchPosition,
+        resetOnFail: Boolean,
+        nullIfNotFound: Boolean,
+        readLimit: Int
+    ): String? {
+        return if(readLimit in 1..<bufferSize){
+            returnByRange(targets = targets, matchPosition, resetOnFail, nullIfNotFound, readLimit)
+        } else{
+            readToOneByOne(targets = targets, matchPosition, resetOnFail, nullIfNotFound, readLimit)
+        }
+    }
+
+    override fun readTo(
+        vararg targets: StrPattern,
+        matchPosition: MatchPosition,
+        resetOnFail: Boolean,
+        nullIfNotFound: Boolean,
+        readLimit: Int
+    ): String? {
+        if (targets.isEmpty()) return if (nullIfNotFound) null else EMPTY_STRING
+
+        return if(readLimit in 1..<bufferSize){
+            returnByRange(targets = targets, matchPosition, resetOnFail, nullIfNotFound, readLimit)
+        }
+        else{
+            readToOneByOne(targets = targets, matchPosition, resetOnFail, nullIfNotFound, readLimit)
+        }
+
     }
 
 
-    fun readTo(
+
+    fun readToOneByOne(
         vararg targets: StrPattern,
         matchPosition: MatchPosition = MatchPosition.BEFORE,
         resetOnFail: Boolean = false,
@@ -1026,7 +983,7 @@ open class HistoryBufferedReader(
     ): String? {
 
         if (targets.isEmpty()) {
-            return if (nullIfNotFound) null else ""
+            return if (nullIfNotFound) null else EMPTY_STRING
         }
 
         val startMark = markPosition()
@@ -1155,15 +1112,6 @@ open class HistoryBufferedReader(
     }
 
 
-    override fun goForwardTo(
-        vararg targets: Char,
-        matchPosition: MatchPosition,
-        resetOnFail: Boolean,
-        readLimit: IHistoryReader.ReadLimit
-    ): Boolean {
-        val limit = calculateEndBufferReadLimit(readLimit) ?: return false
-        return goForwardTo(targets = targets, matchPosition, resetOnFail, limit)
-    }
 
     override fun goBackTo(
         vararg targets: Char,
@@ -1236,4 +1184,70 @@ open class HistoryBufferedReader(
         if (!isOpen) throw IOException("Stream closed")
     }
 
+    private fun calculateRelativePositionInBuffer(absolutePosition: Long): Int {
+        if (absolutePosition < 0) {
+            error("Invalid mark $absolutePosition!")
+        }
+
+        if(bufferCounter.toLong() * half == absolutePosition) {
+            return 0
+        }
+
+        val markedBufferCnt = (absolutePosition / half).toInt() + 1
+
+
+        val currentBufferCnt = bufferCounter
+        val diff = currentBufferCnt - markedBufferCnt
+        if (diff >= 2) {
+            throw IOException("Position is overhead!")
+        }
+        if (diff < 0) {
+            error("Invalid Mark $absolutePosition! Mark if ahead of current position `${pos + (bufferCounter * half - 1)}`")
+        }
+
+        val positionToMove = (absolutePosition % half).toInt()
+        if(diff == 1){
+            return half +  pos - positionToMove
+        }
+        else {
+            return pos - positionToMove
+        }
+    }
+
+    /**
+     * @param fromPosition - included
+     * @param toPosition - included
+     */
+    fun getTextFromRange(fromPosition: Long, toPosition: Long) : String {
+        val relativePositionFrom = calculateRelativePositionInBuffer(fromPosition)
+        val relativePositionTo = calculateRelativePositionInBuffer(toPosition)
+        val len = (toPosition - fromPosition).toInt()
+
+        if(fromPosition == toPosition) return EMPTY_STRING
+
+        require(fromPosition < toPosition) {"invalid positions: $fromPosition > $toPosition"}
+
+        val isStartedInCurrent = pos - relativePositionFrom >= 0
+        val isEndedInCurrent = pos - relativePositionTo > 0
+
+        if(isStartedInCurrent && isEndedInCurrent){
+            return String(headBuffer, pos - relativePositionFrom, len)
+        }
+        else if(!isStartedInCurrent && !isEndedInCurrent){
+
+            val historyPositionFrom =  pos - relativePositionFrom + half
+
+            return String(historyBuffer, historyPositionFrom, len)
+        }
+        else {
+            // isStartedInCurrent == false
+            // isEndedInCurrent == true
+
+            val chars = CharArray(len)
+            System.arraycopy(historyBuffer, pos - relativePositionFrom + half , chars, 0, relativePositionFrom - pos)
+            System.arraycopy(headBuffer, 0 , chars, relativePositionFrom - pos, pos - relativePositionTo)
+            return String(chars)
+        }
+
+    }
 }
