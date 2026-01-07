@@ -149,11 +149,11 @@ val ZoneId.Default : ZoneId get() = ZoneId.systemDefault()
 
 //#################### Classes ####################
 
-infix fun Class<*>.instanceOf(clazz: Class<*>) = clazz.isAssignableFrom(this)
-infix fun Class<*>.isNotInstanceOf(clazz: Class<*>) = !clazz.isAssignableFrom(this)
+infix fun Class<*>.instanceOf(clazz: Class<*>) = clazz.isAssignableFrom(this) || clazz.isAssignableFrom(this.javaPrimitiveTypeToKotlin())
+infix fun Class<*>.isNotInstanceOf(clazz: Class<*>) = !clazz.instanceOf(this)
 
-infix fun Any.instanceOf(clazz: Class<*>) = clazz.isAssignableFrom(this::class.java.javaPrimitiveTypeToKotlin())
-infix fun Any.isNotInstanceOf(clazz: Class<*>) = !clazz.isAssignableFrom(this::class.java.javaPrimitiveTypeToKotlin())
+infix fun Any.instanceOf(clazz: Class<*>) = clazz.instanceOf(this::class.java)
+infix fun Any.isNotInstanceOf(clazz: Class<*>) = !clazz.instanceOf(this::class.java)
 
 @Suppress("UNCHECKED_CAST")
 fun<T: Any> KClass<T>.castObj(obj: Any?): T? {
@@ -216,6 +216,7 @@ fun <T> Class<T>.javaPrimitiveTypeToKotlin(): Class<T>{
         "java.lang.Long" -> Long::class.java
         "java.lang.Double" -> Double::class.java
         "java.lang.Void" -> Void.TYPE
+        "java.lang.Object" -> Any::class.java
         else -> this
     } as Class<T>
 }
